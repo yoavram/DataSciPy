@@ -1,5 +1,4 @@
 import keras
-from tensorflow.examples.tutorials.mnist import input_data
 import requests
 import os
 import shutil
@@ -16,8 +15,6 @@ print('* MNIST (Keras)...')
 keras.datasets.mnist.load_data()
 print('* Fashion-MNIST (Keras)...')
 keras.datasets.fashion_mnist.load_data()
-#print('* MNIST (TensorFlow)...')
-#input_data.read_data_sets('MNIST_data', one_hot=True)
 
 # ResNet50, day 3
 print('* ResNet50...')
