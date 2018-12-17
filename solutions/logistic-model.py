@@ -7,8 +7,9 @@ def _cross_entropy(df, coefs):
     ) / df.shape[0]
         
 def cross_entropy(df, coefs):
-    z = logodds(df, coefs) 
-    logliks = -z*(1-df['Survived'].values) - np.log(1+np.exp(-z))
+    y = df["Survived"].values
+    z = logodds(df, coefs)
+    logliks = -z * (1 - y) - np.log(1 + np.exp(-z))
     return -logliks.mean()
 
 def gradient_descent(df, coefs, eta=0.01):
