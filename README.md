@@ -2,14 +2,9 @@
 ## Setup instructions
 
 - Install [Anaconda with Python 3](http://anaconda.com/download/)
-- Start the *Anaconda Prompt* terminal application.
-- Install the required packages:
-```sh
-> conda update conda
-> conda install -c conda-forge python ipykernel numpy scipy matplotlib pandas scikit-learn seaborn statsmodels tensorflow keras librosa
-```
-- Download the workshop files from [GitHub](https://github.com/yoavram/DataSciPy) by clicking "Clone or download->Download ZIP" (you can `git clone` if you know how to).
+- Download the workshop files from [GitHub](https://github.com/yoavram/DataSciPy/tree/amat2019) by clicking "Clone or download->Download ZIP" (you can `git clone` if you know how to).
 - Unzip the ZIP; make note of the unzipped folder location.
+- Start the *Anaconda Prompt* terminal application.
 - Run Jupyter from *Anaconda Prompt* after changing folder to the workshop folder:
 ```sh
 cd <unzipped workshop folder>
