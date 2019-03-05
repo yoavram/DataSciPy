@@ -13,11 +13,11 @@ def cross_entropy(df, coefs):
 
 def gradient_descent(df, coefs, η=0.01):
     X = df[['Sex', 'Age', 'Pclass']].values
+    nsamples = X.shape[0]
     Y = df['Survived'].values
-    nsamples = Y.shape[0]
-    
-    Yhat = expit(logodds(df, coefs))
+    Z = logodds(df, coefs)
+    Yhat = expit()
     δ = Yhat - Y
     grad = X.T @ δ / nsamples
     assert grad.shape == grad.shape
-    return grad - η * grad
+    return coefs - η * grad
