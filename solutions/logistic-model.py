@@ -16,7 +16,7 @@ def gradient_descent(df, coefs, η=0.01):
     nsamples = X.shape[0]
     Y = df['Survived'].values
     Z = logodds(df, coefs)
-    Yhat = expit()
+    Yhat = expit(Z)
     δ = Yhat - Y
     grad = X.T @ δ / nsamples
     assert grad.shape == grad.shape
