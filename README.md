@@ -11,6 +11,7 @@ cd <unzipped workshop folder>
 jupyter lab
 ```
 - In the new browser window that just opened, choose [`index.ipynb`](index.ipynb).
+<<<<<<< HEAD
 - Download the required data files for Day 3; open *Anaconda Prompt*/*Terminal*, activate the environment (on Mac and Linux, start the first line with `source`), and run the download script:
 ```sh
 > cd <unzipped workshop folder>
