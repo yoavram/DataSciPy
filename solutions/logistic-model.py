@@ -1,4 +1,3 @@
-
 def _cross_entropy(df, coefs):
     return -sum(
         -z*(1-y) - np.log(1+np.exp(-z)) 
@@ -12,11 +11,13 @@ def cross_entropy(df, coefs):
     logliks = -z * (1 - y) - np.log(1 + np.exp(-z))
     return -logliks.mean()
 
-def gradient_descent(df, coefs, eta=0.01):
+def gradient_descent(df, coefs, η=0.01):
     X = df[['Sex', 'Age', 'Pclass']].values
     Y = df['Survived'].values
+    nsamples = Y.shape[0]
+    
     Yhat = expit(logodds(df, coefs))
     δ = Yhat - Y
-    dcoefs = X.T @ δ / δ.shape[0]
-    assert dcoefs.shape == coefs.shape
-    return coefs - eta * dcoefs
+    grad = X.T @ δ / nsamples
+    assert grad.shape == grad.shape
+    return grad - η * grad
