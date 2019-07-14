@@ -7,7 +7,7 @@ def ReLU(X):
     return np.maximum(X, 0.0)
 
 def dReLU(X):
-    return (X > 0).astype(int)
+    return (X > 0).astype(float)
 
 ## Feed Forward with loop
 
