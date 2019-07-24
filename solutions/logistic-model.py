@@ -15,8 +15,9 @@ def cross_entropy(X, Y, a):
 def gradient_descent(X, Y, a, η=0.01):
     nsamples = Y.shape[0]
     
-    Yhat = expit(logodds(X, a))
+    Z = X @ a
+    Yhat = 1 / (1 + np.exp(-Z))
     δ = Yhat - Y
     grad = X.T @ δ / nsamples
-    assert grad.shape == grad.shape
-    return grad - η * grad
+    assert grad.shape == a.shape
+    return a - η * grad
