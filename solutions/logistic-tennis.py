@@ -37,4 +37,3 @@ if __name__ == '__main__':
 	with open(model_filename, 'wb') as f:
 		pickle.dump(model, f)
 		print("Saving model to", model_filename)
-	print(X_test.iloc[0], y_test.iloc[0])
