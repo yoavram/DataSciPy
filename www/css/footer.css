@@ -1,0 +1,27 @@
+/* Footer
+-------------------------------------------------- */
+
+.colophon:before {
+  display: block;
+  content: '';
+  width: 100px;
+  height: 1px;
+  margin: 20px auto 20px;
+  background-color: #eee;
+}
+.colophon ul, .colophon p {
+  text-align: center;
+  font-size: 10px;
+  line-height: 20px;
+  color: #999999;
+}
+.colophon ul {
+  margin-left: 0;
+}
+.colophon ul li {
+  display: inline;
+  padding: 0 10px;
+}
+.colophon ul a {
+  white-space: nowrap;
+}
