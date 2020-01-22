@@ -1,4 +1,7 @@
-import keras
+try:
+    import keras
+except ModuleNotFoundError:
+    from tensorflow import keras
 import requests
 import os
 import shutil
@@ -26,8 +29,11 @@ fname = 'data/ESC.zip'
 print('* ESC-50...')
 if not os.path.exists(fname):
 	download_file(url, fname)
-with zipfile.ZipFile(fname) as z:
-    z.extractall('data/')
+try:
+    with zipfile.ZipFile(fname) as z:
+        z.extractall('data/')
+except zipfile.BadZipFile:
+    print("Problem with file {}, delete it and try again".format(fname))
 
 # SpeechEmotion, day 3
 url = 'https://github.com/yoavram/SpeechEmotion/archive/master.zip'
