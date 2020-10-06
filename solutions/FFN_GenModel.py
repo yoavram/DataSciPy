@@ -1,3 +1,5 @@
+# Generative model assignment
+
 def feed_forward(Ws, X, keep_prob=1):
     layers = [X]
     for i, W in enumerate(Ws):
