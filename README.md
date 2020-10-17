@@ -14,7 +14,7 @@
 > python -m ipykernel install --user
 > pip install librosa
 ```
-- Download the workshop files from [GitHub](https://github.com/yoavram/DataSciPy/tree/kti2018) by clicking "Clone or download->Download ZIP" (you can `git clone` if you know how to).
+- Download the workshop files from [GitHub](https://github.com/yoavram/DataSciPy/tree/kti2020) by clicking "Clone or download->Download ZIP" (you can `git clone` if you know how to).
 - Unzip the ZIP; make note of the unzipped folder location.
 - Run Jupyter from *Anaconda Prompt* after changing folder to the workshop folder:
 ```sh
