@@ -10,6 +10,8 @@ pip install yellowbrick
 pip install corner
 pip install emcee
 pip install cartopy
+pip install pyabc==0.10.6
+pip install networkx
 ```
 - Run Jupyter from *Anaconda Prompt* after changing folder to the workshop folder:
 ```sh
