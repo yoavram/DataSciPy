@@ -34,20 +34,21 @@ def back_propagation(Ws, X, Y, keep_prob=1):
     gradients = []
     
     for i in range(len(Ws)):
-        Z = layers.pop()
+        Z = layers.pop() # remove last layer from list
         if i == 0:
             # readout layer, Z=Yhat
             δ = Z - Y
-            layers.pop()
+            layers.pop() # remove last layer from list
         else:
             # hidden layers, Z = X @ W
             W = Ws[-i]
             δ = (δ @ W.T) * dReLU(Z) # δ = δ * W * ReLU(Z)
-        X = layers.pop()
+        X = layers.pop() # remove last layer from list
         dW = X.T @ δ # dC/dW = δ * X
         gradients.append(dW)
     
-    gradients.reverse()
+    # reverse list of gradients - it is currently from last to first
+    gradients.reverse() 
     # sanity checks
     assert len(gradients) == len(Ws), (len(gradients), len(Ws))
     for dW, W in zip(gradients, Ws):
