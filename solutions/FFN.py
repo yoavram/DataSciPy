@@ -31,7 +31,7 @@ def feed_forward(Ws, X, keep_prob=1):
 
 def back_propagation(Ws, X, Y, keep_prob=1):
     layers = feed_forward(Ws, X, keep_prob=keep_prob) # X1, Z1, X2, Z2, Yhat
-    gradients = []
+    dJdWs = []
     
     for i in range(len(Ws)):
         Z = layers.pop() # remove last layer from list
@@ -44,13 +44,13 @@ def back_propagation(Ws, X, Y, keep_prob=1):
             W = Ws[-i]
             δ = (δ @ W.T) * dReLU(Z) # δ = δ * W * ReLU(Z)
         X = layers.pop() # remove last layer from list
-        dW = X.T @ δ # dC/dW = δ * X
-        gradients.append(dW)
+        dJdW = X.T @ δ # dC/dW = δ * X
+        dJdWs.append(dJdW)
     
     # reverse list of gradients - it is currently from last to first
-    gradients.reverse() 
+    dJdWs.reverse() 
     # sanity checks
-    assert len(gradients) == len(Ws), (len(gradients), len(Ws))
-    for dW, W in zip(gradients, Ws):
-        assert dW.shape == W.shape, (dW.shape, W.shape)
-    return gradients
+    assert len(dJdWs) == len(Ws), (len(dJdWs), len(Ws))
+    for dJdW, W in zip(dJdWs, Ws):
+        assert dJdW.shape == W.shape, (dJdW.shape, W.shape)
+    return dJdWs
