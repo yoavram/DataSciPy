@@ -1,7 +1,4 @@
-# try:
-#     import keras
-# except ModuleNotFoundError:
-#     from tensorflow import keras
+from tensorflow import keras
 import requests
 import os
 import shutil
@@ -14,14 +11,14 @@ def download_file(url, fname):
         shutil.copyfileobj(r.raw, f)
 
 # MNIST and Fasihon MNIST, day 2 and 3
-# print('* MNIST (Keras)...')
-# keras.datasets.mnist.load_data()
-# print('* Fashion-MNIST (Keras)...')
-# keras.datasets.fashion_mnist.load_data()
+print('* MNIST (Keras)...')
+keras.datasets.mnist.load_data()
+print('* Fashion-MNIST (Keras)...')
+keras.datasets.fashion_mnist.load_data()
 
 # ResNet50, day 3
-# print('* ResNet50...')
-# keras.applications.resnet50.ResNet50(weights='imagenet')
+print('* ResNet50...')
+keras.applications.resnet50.ResNet50(weights='imagenet')
 
 # ESC-50, day 3
 url = 'https://github.com/karoldvl/ESC-50/archive/master.zip'
