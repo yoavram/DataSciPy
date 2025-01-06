@@ -5,7 +5,7 @@ Please go to the [index notebook](index.ipynb) to view the workshop.
 
 ## Setup instructions
 
-1. Download and install [Python]([http://anaconda.com/download/](https://conda-forge.org/download/)).
+1. Download and install [Python](http://anaconda.com/download/](https://conda-forge.org/download/).
 2. Download the [workshop files ZIP](https://github.com/yoavram/DataSciPy/archive/refs/heads/Mobileye.zip).
 3. Unzip the ZIP; make note of the unzipped folder location.
 4. Start the *Anaconda Prompt* terminal application.
