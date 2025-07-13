@@ -5,8 +5,8 @@ Please go to the [index notebook](index.ipynb) to view the workshop.
 
 ## Setup instructions
 
-1. Download and install [Python](https://conda-forge.org/download/).
-2. Download the [workshop files ZIP](https://github.com/yoavram/DataSciPy/archive/refs/heads/Mobileye.zip).
+1. Download and install Python using [Miniforge](https://conda-forge.org/download/).
+2. Download the [workshop files ZIP](https://github.com/yoavram/DataSciPy/archive/refs/heads/amat2025a.zip).
 3. Unzip the ZIP; make note of the unzipped folder location.
 4. Start the *Command line* or *terminal* application.
 5. Run Jupyter from after changing folder to the workshop folder:
