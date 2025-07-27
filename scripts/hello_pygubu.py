@@ -1,28 +1,24 @@
-try:
-    import tkinter as tk  # for python 3
-except ImportError:
-    import Tkinter as tk  # for python 2
+from pathlib import Path
+import tkinter as tk  # for python 3
 import pygubu
-
+import os
 
 class Application:
     def __init__(self):
-        self.master = master = tk.Tk()
-        #1: Create a builder
-        self.builder = builder = pygubu.Builder()
-
-        #2: Load an ui file
-        builder.add_from_file('hello_pygubu.ui')
-
-        #3: Create the widget using a master as parent
-        self.mainwindow = builder.get_object('mainwindow', master)
-        self.lbl = builder.get_object('lbl', master)
-
-        #3: Connect callbacks
-        builder.connect_callbacks(self)
+        self.master = tk.Tk()
+        self.builder = pygubu.Builder()
+        # Load the UI file
+        app_folder = Path(__file__).parent
+        ui_path = app_folder / 'hello_pygubu.ui'
+        self.builder.add_from_file(ui_path)
+        # Create the main window - must be done after loading the UI
+        self.mainwindow = self.builder.get_object('mainwindow', self.master)        
+        # Connect callbacks
+        self.builder.connect_callbacks(self)
 
     def click(self):
-        self.lbl['text'] = "Clicked"
+        lbl = self.builder.get_object('lbl')
+        lbl.config(text="Clicked")
 
 if __name__ == '__main__':
     app = Application()
