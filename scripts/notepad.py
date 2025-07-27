@@ -1,71 +1,63 @@
-import sys
-import threading
-import time
-from PySide import QtGui
-from notepad_design import Ui_MainWindow
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import pygubu
+from pathlib import Path
 
-class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
+class NotepadApp:
+    def __init__(self):
+        self.master = tk.Tk()
+        self.builder = pygubu.Builder()
+        # Load the UI file, load main window, connect callbacks
+        ui_path = Path(__file__).parent / 'notepad.ui'
+        self.builder.add_from_file(ui_path)
+        self.mainwindow = self.builder.get_object('mainwindow', self.master)
+        self.builder.connect_callbacks(self)
 
-        # connect buttons to callbacks
-        self.saveButton.clicked.connect(self.save)
-        self.loadButton.clicked.connect(self.load)
-        self.browseButton.clicked.connect(self.browse)
+        # Get widgets by id
+        self.textEdit = self.builder.get_object('textEdit')
+        self.filenameEdit = self.builder.get_object('filenameEdit')
+        self.counterLabel = self.builder.get_object('counterLabel')
 
-        # create word count update worker thread
-        def word_counter_update_task():
-            while True:
-                self.update_word_count()
-                time.sleep(1)
-        self.word_count_updater = threading.Thread(target=word_counter_update_task, name='word_count_updater')
-        self.word_count_updater.start()
-
-        self.show()
-
-    def error_dialog(self, error):
-        msg = QtGui.QMessageBox(self)
-        msg.setText(str(error))
-        msg.show()
+        # Bind word count update to text changes
+        self.textEdit.bind('<<Modified>>', self.on_text_modified)
+        self.update_word_count()
 
     def save(self):
-        text = self.textEdit.toPlainText()
-        filename = self.filenameEdit.text()
+        filename = self.filenameEdit.get()
         try:
-            with open(filename, 'w') as f:
-                print(text, file=f)
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(self.textEdit.get("1.0", tk.END))
         except Exception as e:
-                self.error_dialog(e)
+            messagebox.showerror("Error", str(e))
 
     def load(self):
-        filename = self.filenameEdit.text()
+        filename = self.filenameEdit.get()
         try:
-            with open(filename) as f:
-                text = f.read()
+            with open(filename, encoding='utf-8') as f:
+                content = f.read()
+            self.textEdit.delete("1.0", tk.END)
+            self.textEdit.insert(tk.END, content)
         except Exception as e:
-            self.error_dialog(e)
-        self.textEdit.clear()
-        self.textEdit.appendPlainText(text)
+            messagebox.showerror("Error", str(e))
 
     def browse(self):
-        filename, _ = QtGui.QFileDialog.getOpenFileName(
-            self,
-            "Open Text File",
-            ".",
-            "Text Files (*.txt *.csv *.json)"
+        filename = filedialog.askopenfilename(
+            filetypes=[("Text Files", "*.txt *.csv *.json"), ("All Files", "*.*")]
         )
-        self.filenameEdit.setText(filename)
+        if filename:
+            self.filenameEdit.delete(0, tk.END)
+            self.filenameEdit.insert(0, filename)
 
     def update_word_count(self):
-        text = self.textEdit.toPlainText()
+        text = self.textEdit.get("1.0", tk.END).strip()
         words = text.split()
-        word_count = len(words)
-        self.counterLabel.setText('{:d}'.format(word_count))
+        self.counterLabel.config(text=f"Words: {len(words)}")
+
+    def on_text_modified(self, event=None):
+        self.update_word_count()
+        self.textEdit.edit_modified(False)
 
 
 if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
-    form = MainWindow()
-    form.show()
-    sys.exit(app.exec_())
+    app = NotepadApp()
+    app.master.mainloop()

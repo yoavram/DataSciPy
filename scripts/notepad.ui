@@ -49,6 +49,7 @@
     <child>
       <object class="tk.Button" id="browseButton">
         <property name="text" translatable="yes">...</property>
+        <property name="command">browse</property>
         <layout>
           <property name="column">2</property>
           <property name="propagate">True</property>
@@ -60,6 +61,7 @@
     <child>
       <object class="tk.Button" id="saveButton">
         <property name="text" translatable="yes">Save</property>
+        <property name="command">save</property>
         <layout>
           <property name="column">3</property>
           <property name="propagate">True</property>
@@ -71,6 +73,7 @@
     <child>
       <object class="tk.Button" id="loadButton">
         <property name="text" translatable="yes">Load</property>
+        <property name="command">load</property>
         <layout>
           <property name="column">4</property>
           <property name="propagate">True</property>
