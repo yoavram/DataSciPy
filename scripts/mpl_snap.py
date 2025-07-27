@@ -25,23 +25,13 @@ class SnappingCursor:
         # text location in axes coords
         self.text = ax.text(0.72, 0.9, '', transform=ax.transAxes)
 
-    def set_cross_hair_visible(self, visible):
-        need_redraw = self.horizontal_line.get_visible() != visible
-        self.horizontal_line.set_visible(visible)
-        self.vertical_line.set_visible(visible)
-        self.text.set_visible(visible)
-        return need_redraw
-
     def on_mouse_move(self, event):
         fig = self.ax.figure
         # Hide crosshair if mouse is outside axes or data is invalid
         if not event.inaxes:
             self._last_index = None
-            if self.set_cross_hair_visible(False):
-                fig.canvas.draw()
             return
         # Snap to nearest data point
-        self.set_cross_hair_visible(True)
         cursor_x, cursor_y = event.xdata, event.ydata
         index = min(np.searchsorted(self.data_x, cursor_x), len(self.data_x) - 1)
         if index == self._last_index:
