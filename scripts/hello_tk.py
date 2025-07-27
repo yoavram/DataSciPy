@@ -28,5 +28,6 @@ class Application:
     def say_hi(self):
         print("Hi there, everyone!")
 
-app = Application()
-app.root.mainloop()
+if __name__ == "__main__":
+    app = Application()
+    app.root.mainloop()
