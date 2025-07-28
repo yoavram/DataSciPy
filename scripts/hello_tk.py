@@ -6,28 +6,34 @@ import tkinter as tk
 
 class Application:
     def __init__(self):
-        self.root = tk.Tk()
-        self.frame = tk.Frame(self.root)
-        self.frame.pack() # geometry manager, can also use grid or place instead
-        self.root.title("Hello World App")
-        self.root.geometry("200x60")  # Set the window size
-        self.root.resizable(False, False)  # Disable resizing
-        self.root.iconname("hello_tk")  # Set the window title
-        self.create_widgets()
+        self.master = tk.Tk()
+        self.frame = tk.Frame(self.master)
+        self.frame.grid() # geometry manager, can also use grid or place instead
+        self.master.title("Hello World App")
+        self.master.geometry("200x60")  # Set the window size
+        self.master.resizable(False, False)  # Disable resizing
 
-    def create_widgets(self):
-        self.hi_there = tk.Button(self.frame)
-        self.hi_there["text"] = "Say Hi!"
-        self.hi_there["command"] = self.say_hi
-        self.hi_there.pack(side="top")
+        self.hi_btn = tk.Button(
+            self.frame, 
+            text="Say Hi!",
+            command=self.on_click
+        )
+        self.hi_btn.grid(row=0, column=0)
 
-        self.quit_button = tk.Button(self.frame, text="Quit", fg="red",
-                                     command=self.root.destroy)
-        self.quit_button.pack(side="bottom")
+        self.label = tk.Label(self.frame, text='')
+        self.label.grid(row=0, column=1)
 
-    def say_hi(self):
-        print("Hi there, everyone!")
+        self.quit_btn = tk.Button(
+            self.frame, 
+            text="Quit", 
+            fg="red",
+            command=self.master.destroy
+        )
+        self.quit_btn.grid(row=1, column=0)
+
+    def on_click(self):
+        self.label.config(text="Hi!")
 
 if __name__ == "__main__":
     app = Application()
-    app.root.mainloop()
+    app.master.mainloop()
