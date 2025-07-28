@@ -21,7 +21,7 @@ class SnappingCursor:
         self.horizontal_line = ax.axhline(color='k', lw=0.8, ls='--')
         self.vertical_line = ax.axvline(color='k', lw=0.8, ls='--')
         self.data_x, self.data_y = line.get_data()
-        self._last_index = None
+        self.last_index = None # did we move to a new data point?
         # text location in axes coords
         self.text = ax.text(0.72, 0.9, '', transform=ax.transAxes)
 
@@ -29,14 +29,14 @@ class SnappingCursor:
         fig = self.ax.figure
         # Hide crosshair if mouse is outside axes or data is invalid
         if not event.inaxes:
-            self._last_index = None
+            self.last_index = None
             return
         # Snap to nearest data point
         cursor_x, cursor_y = event.xdata, event.ydata
         index = min(np.searchsorted(self.data_x, cursor_x), len(self.data_x) - 1)
-        if index == self._last_index:
+        if index == self.last_index:
             return  # still on the same data point
-        self._last_index = index
+        self.last_index = index
         cursor_x = self.data_x[index]
         cursor_y = self.data_y[index]
         # Update crosshair and text
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     # draw plot
     x = np.linspace(0, 2 * np.pi, 100)
     y = np.sin(x)
-    line, = ax.plot(x, y)
+    line = ax.plot(x, y)[0]
     # setup cursor
     snap_cursor = SnappingCursor(ax, line)
     fig.canvas.mpl_connect('motion_notify_event', snap_cursor.on_mouse_move)

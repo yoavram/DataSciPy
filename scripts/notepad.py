@@ -50,12 +50,12 @@ class NotepadApp:
 
     def update_word_count(self):
         text = self.textEdit.get("1.0", tk.END).strip()
-        words = text.split()
-        self.counterLabel.config(text=f"Words: {len(words)}")
+        n_words = len(text.split())
+        self.counterLabel.config(text=f"Words: {n_words}")
 
     def on_text_modified(self, event=None):
         self.update_word_count()
-        self.textEdit.edit_modified(False)
+        self.textEdit.edit_modified(False) # finished handling the event
 
 
 if __name__ == "__main__":

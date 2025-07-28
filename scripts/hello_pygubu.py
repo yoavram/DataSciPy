@@ -1,7 +1,6 @@
 from pathlib import Path
-import tkinter as tk  # for python 3
+import tkinter as tk
 import pygubu
-import os
 
 class Application:
     def __init__(self):
@@ -17,8 +16,8 @@ class Application:
         self.builder.connect_callbacks(self)
 
     def click(self):
-        lbl = self.builder.get_object('lbl')
-        lbl.config(text="Clicked")
+        label = self.builder.get_object('lbl')
+        label.config(text="Clicked")
 
 if __name__ == '__main__':
     app = Application()

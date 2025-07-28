@@ -5,6 +5,9 @@ Extract a gzipped file and print its contents.
 Created on Tue Feb  9 12:30:45 2016
 
 @author: yoav@yoavram.com
+
+Example:
+    python scripts/zcat.py data/crops.txt.gz
 """
 import sys
 import gzip
