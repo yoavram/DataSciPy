@@ -5,7 +5,7 @@ Go to the [index notebook](index.ipynb) to view the table of contents.
 
 ## Setup instructions
 
-1. Download and install [Miniforge](https://conda-forge.org/download/), a Python installer that also includes conda, mamba
+1. If you don't have Python, download and install from [Miniforge](https://conda-forge.org/download/), a Python installer that also includes conda, mamba
 1. Download the workshop [ZIP file](https://github.com/yoavram/DataSciPy/archive/refs/heads/master.zip).
 1. Unzip the ZIP; make note of the unzipped folder location.
 1. Start the terminal or command line application.
