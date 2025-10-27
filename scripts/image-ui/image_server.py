@@ -11,6 +11,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'images/'
 app.config['EXTENSION'] = '.jpg'
 
+os.chdir('scripts/image-ui')
 if os.path.exists(app.config['UPLOAD_FOLDER']):
     shutil.rmtree(app.config['UPLOAD_FOLDER'])
 os.mkdir(app.config['UPLOAD_FOLDER'])
@@ -26,14 +27,16 @@ def generate_url(_id):
 
 @app.route('/api/1/image/<string:image_id>')
 def get_image(image_id):
-	return send_file(generate_path(image_id))
+	path = generate_path(image_id)
+	return send_file(path)
 
 
 @app.route('/api/1/image', methods=['POST'])
 def post_image():
 	file = request.files['file']
 	image_id = generate_id()
-	file.save(generate_path(image_id))
+	path = generate_path(image_id)
+	file.save(path)
 	return jsonify(image_id=image_id, url=generate_url(image_id))
 
 

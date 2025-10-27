@@ -12,17 +12,17 @@ def error(msg):
 
 def upload_image(filename):
     """Upload image to web server, returning its URL.
-    
+
     Parameters
     ----------
     filename : str
         filename of image file to upload
-        
+
     Returns
     -------
     str
         URL of the image on the remote server
-        
+
     Raises
     ------
     Exception :
@@ -39,19 +39,19 @@ def upload_image(filename):
 
 def download_image(url, filename=None):
     """Download image from web server.
-    
+
     Parameters
     ----------
     url : str
         URL of image to download
     filename : str
         filename to write the downloaded image to, defaults to `None`
-        
+
     Returns
     -------
     io.BytesIO 
         the image data if `filename` is `None`, otherwise `None`
-        
+
     Raises
     ------
     Exception :
@@ -67,20 +67,20 @@ def download_image(url, filename=None):
             f.write(resp.content)
     else:
         return io.BytesIO(resp.content)
-        
+
 def segment_image(url):
     """Ask web server to segment an image, returning the URL of the segmented image.
-    
+
     Parameters
     ----------
     url : str
         URL of the image to segment on the remote server
-        
+
     Returns
     -------
     str
         URL of the segmented image on the remote server
-        
+
     Raises
     ------
     Exception :
