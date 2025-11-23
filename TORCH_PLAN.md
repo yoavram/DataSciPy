@@ -1,5 +1,7 @@
 # Day 3 PyTorch Migration Plan
 
+This plan guides the migration of Day 3 lecture notebooks from Keras to PyTorch while preserving the workshop’s structure, examples, and teaching flow. It highlights what to change, how to stage PyTorch concepts for students, and which tools/packages to rely on, so the transition keeps the learning experience smooth across CPU, MPS, and GPU setups.
+
 1. **Scope** Convert `sessions/K_FFN.ipynb`, `sessions/K_CNN.ipynb`, `sessions/CNN_timeseries.ipynb`, `sessions/audio.ipynb`, and `sessions/pretrained.ipynb` from Keras to PyTorch; exclude solutions, exercises, and Days 1, 2, 4; keep datasets, examples, and narrative flow.
 2. **Notebook style** Preserve logo/title cells and “In this session we will…” intros; maintain markdown narratives and plot order; add short PyTorch primers before first use (tensors/autograd → `nn.Module`/optimizer → datasets/dataloaders → device handling).
 3. **Shared setup** Replace `jax`/`keras` imports with `torch`, `torch.nn as nn`, `torch.nn.functional as F`, `from torch.utils.data import DataLoader, TensorDataset`; set `device` priority: CUDA GPU if available, else MPS (`torch.backends.mps.is_available()`), else CPU; move tensors/models to device; keep `%matplotlib inline`, reproducible seeds (`torch.manual_seed`).
