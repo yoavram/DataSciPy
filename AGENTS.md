@@ -1,0 +1,1 @@
+Reminder: always verify you’re on the `torch` branch before reading, editing, writing, or committing. If a branch switch occurs, switch back to `torch` unless explicitly told otherwise. Current branch checked via `git status`/`git rev-parse --abbrev-ref HEAD`.
