@@ -1,3 +1,6 @@
 .DS_Store
 .ipynb_checkpoints
 *.pyc
+data/hyena
+data/ESC-50-master 
+data/sign-lang
