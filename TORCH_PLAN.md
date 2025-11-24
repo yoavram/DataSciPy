@@ -14,5 +14,4 @@ This plan guides the migration of Day 3 lecture notebooks from Keras to PyTorch 
 10. **Validation** Run notebooks end-to-end using available acceleration (GPU or MPS) or CPU as fallback; do not change `environment.yml`; we will list needed packages for pixi setup separately.
 11. **Teaching notes** Emphasize PyTorch idioms: manual loops vs. `model.fit`, autograd, `.train()`/`.eval()`, `with torch.no_grad()`, device moves, and saving/loading; relate concepts to prior JAX experience (highlight autograd/backprop differences) with an explicit first-time explanation in the initial PyTorch notebook.
 12. **Required packages (list for future pixi env)** `torch`, `torchvision`, `torchaudio`, `timm` (if used for EfficientNet-V2), `transformers` (only if chosen for EfficientNet-V2), `matplotlib`, `numpy`.
-- TODO: Copy over detailed convolution/activation/pooling explanations from K_CNN into T_CNN when polishing the PyTorch version.
 
