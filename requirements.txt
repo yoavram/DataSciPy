@@ -1,0 +1,16 @@
+jupyter
+ipykernel
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+scikit-learn
+scikit-image
+statsmodels
+jax
+keras
+optax
+palmerpenguins
+imageio
+ipywidgets

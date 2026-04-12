@@ -3,22 +3,45 @@
 
 Go to the [index notebook](index.ipynb) to view the table of contents.
 
-## Setup instructions
+## Setup guide
 
-1. Download and install [Miniforge](https://conda-forge.org/download/), a Python installer that also includes conda, mamba
-1. Download the workshop [ZIP file](https://github.com/yoavram/DataSciPy/archive/refs/heads/master.zip).
-1. Unzip the ZIP; make note of the unzipped folder location.
-1. Start the terminal or command line application.
-1. Install required packages into the base environment: `mamba env update -f environment.yml`.
+This guide gets you ready to run the course Jupyter notebooks in VS Code using the official Jupyter extension.
 
-If using *Jupyter Lab*:
-1. Change folder to the workshop folder (`cd <unzipped workshop folder>`)
-1. Run Jupyter lab (`jupyter lab`) 
-6. In the new browser window that just opened, choose [`index.ipynb`](index.ipynb).
+#### Install VS Code
 
-If using *VS Code* (requires additional install from [here](https://code.visualstudio.com/download)):
-1. Open VS Code and open the workshop folder.
+- Download and install from <https://code.visualstudio.com/>.
 
-### Notes to experienced users
-1. Instead of downloading the ZIP, you can clone the repo: `git clone https://github.com/yoavram/DataSciPy.git`
-1. Instead of updating the base environment, you can create a new environment: `mamba env create -f environment.yml -n DataSciPy`.
+#### Download the course materials
+
+- Direct download (recommended): [ZIP file](https://github.com/yoavram/DataSciPy/archive/refs/heads/DeepLearning.zip).
+- Unzip and note the folder path.
+- If you prefer `git`, see <https://github.com/yoavram/DataSciPy/tree/DeepLearning>.
+
+#### Open the course folder in VS Code
+
+- Start VS Code.
+- Choose **File -> Open Folder...**
+- Select the course folder you just unzipped.
+
+#### Install VS Code extensions
+
+- Open **Extensions** in VS Code and install:
+  - **Python** (by Microsoft): <https://code.visualstudio.com/docs/python/python-quick-start>
+  - **Jupyter** (by Microsoft): <https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter>
+  - Optional: **GitHub Copilot**: <https://code.visualstudio.com/docs/copilot/setup>
+
+#### Create a Python environment
+
+- In VS Code, open the Command Palette (Ctrl+Shift+P) and run **Python: Create Environment**.
+- Choose *venv*.
+- Choose a recent Python version, preferably Python 3.12 or 3.13.
+- When prompted for virtual environment name, stick with `.venv`.
+- Choose *Install project dependencies* 
+- Choose the `requirements.txt` file from the local folder `DataSciPy/requirements.txt`.
+
+VS Code will now create a virtual environment with course dependencies, which can take a few minutes.
+
+#### Open the notebooks in VS Code
+
+- Open `index.ipynb` in VS Code.
+- When VS Code asks for a kernel, choose the `.venv` environment you created.
