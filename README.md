@@ -1,4 +1,4 @@
-# Deep Learning with Python workshop
+# Data Science with Python workshop
 ## Yoav Ram
 
 Go to the [index notebook](index.ipynb) to view the table of contents.
