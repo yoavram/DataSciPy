@@ -14,3 +14,4 @@ optax
 palmerpenguins
 imageio
 ipywidgets
+flowjax
