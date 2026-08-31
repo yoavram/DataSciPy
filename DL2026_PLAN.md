@@ -29,7 +29,7 @@ Read the status table as the index of what to do.
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | one pending link: `sessions/transfer.ipynb` (Phase 2) |
-| 7 (§4b) `sessions/flow.ipynb` | **TODO** | local | was "Phase 3b"; FlowJAX conditional API verified, and §4b's AnAge story corrected |
+| 7 (§4b) `sessions/flow.ipynb` | **TODO** | local? see §4b | was "Phase 3b"; **respecified 2026-08-31** as UCI POWER density estimation, not conditional AnAge |
 | 8 (§12) `sessions/autoencoders.ipynb` | **TODO** | local | small; finishes off `autoencoders-plan.md` |
 | 9 (§9) Validation | PARTIAL only | local + remote | full GPU notebook runs depend on Phases 2/3 |
 
@@ -133,13 +133,14 @@ Decided after Phase 6 and applied on top of it:
 
 ### Corrections to this plan, found while executing it
 
-1. **§4b logo claim is wrong.** `img/logo.png` is not unique to `flow.ipynb` —
-   `sessions/K_FFN.ipynb` and `sessions/jax.ipynb` use it too, and
-   `sessions/img/logo.png` exists, so all three resolve correctly. This is a
-   consistency issue, not a broken link. Normalize all three to `../logo.png` in
-   Phase 6 housekeeping rather than treating it as a `flow.ipynb` defect.
-   (`sessions/gamma_regression.ipynb` uses `![](../logo.png)` with no `Py4Eng`
-   alt text — same pass.)
+1. **§4b's logo claim needed refining.** In the *opening* cell, `img/logo.png` is
+   used by `sessions/flow.ipynb` and `sessions/jax.ipynb`; `CNN_timeseries.ipynb`
+   has no logo image at all; everything else uses `../logo.png`.
+   `sessions/K_FFN.ipynb` matches a naive grep only because of a Keras logo in its
+   body. `sessions/img/logo.png` exists, so nothing is actually broken — this is a
+   consistency issue, handled in the Phase 7 housekeeping list.
+   (`sessions/gamma_regression.ipynb` uses `![](../logo.png)` with no `Py4Eng` alt
+   text — same pass.)
 2. **§7 `download_data.py` is not on this branch.** It exists on `master`,
    `amat2025b` and `torch`, but *not* on `DeepLearning`, so Phase 6 must
    `git checkout origin/master -- download_data.py` before rewriting it. The
@@ -211,10 +212,11 @@ Decided after Phase 6 and applied on top of it:
     treatment of one dataset" thread does not exist; (c) the Day 1 exercise is
     Kleiber's law — `Metabolic rate (W)` on `Body mass (g)` — so it does not share
     a response variable with a lifespan model. Also, `Body mass (g)` has only 627
-    non-null rows; the flow demo needs `Adult weight (g)` (2,951 non-null, 2,560
-    complete with `Maximum longevity (yrs)`). §4b is rewritten accordingly, with
-    the measured heteroscedasticity, skew and bats-versus-rodents numbers in place
-    of the assumed ones.
+    non-null rows, so the demo would have needed `Adult weight (g)` (2,951 non-null,
+    2,560 complete with `Maximum longevity (yrs)`) rather than the column the plan
+    named. **Superseded:** §4b was subsequently respecified from scratch around UCI
+    POWER, and AnAge is now explicitly out of scope for `flow.ipynb`. This entry is
+    kept because it is the reason the AnAge design was abandoned.
 16. **`autoencoders-plan.md` is nearly spent, contrary to what its text implies.**
     The bottleneck sweep, the 2D latent scatter, **latent interpolation**, the
     convolutional autoencoder and the structured denoising section are all already
@@ -456,119 +458,164 @@ measured numbers in the notebook.
 
 ---
 
-## 4b. Phase 7 — Add a real example to `sessions/flow.ipynb`  ⬜ TODO (local)
+## 4b. Phase 7 — Add a real density-estimation example to `sessions/flow.ipynb`  ⬜ TODO
 
-*(This was "Phase 3b". Section number kept as an anchor.)*
+*(This was "Phase 3b". Section number kept as a document anchor.)*
 
-The notebook is currently toy-only: `make_moons` throughout (2,500 points), KDE
-and GMM baselines, then a masked autoregressive flow with rational-quadratic
-splines that trains in about two seconds. The exercises are knob-turning. Keep
-all of this as the first half — it is a good, compact motivation — and add a
-real conditional example as the second half.
+**This section was replaced wholesale on 2026-08-31.** The previous design fitted a
+*conditional* flow to AnAge life-history data. It is dropped: `p(lifespan | mass)`,
+the AnAge callback story, Palmer penguins, autoencoder latent spaces, and
+conditioning of any kind are all **out of scope** for this notebook. Correction 15
+records why the AnAge framing did not survive contact with the notebooks. The
+replacement below is the current spec.
 
-**Dataset: AnAge** (`data/anage_data.txt`, 4,219 rows, committed to the repo).
+### Context
 
-**Read correction 15 before building this.** The callback story in the original
-plan was wrong in three ways, and the corrected version is:
+Day 4 session, 1.5 academic hours (50 minutes each). The notebook currently uses
+`make_moons` throughout: KDE and GMM baselines, then a FlowJAX masked
+autoregressive flow with rational-quadratic splines, a density comparison and a
+sample comparison. It trains in about two seconds. **Keep all of it as the first
+half (~45 min)** and add a real dataset as the second half (~30 min).
 
-- AnAge appears in the workshop exactly **once**, in `exercises/linear-anage.ipynb`
-  and its solution — which is **Day 1 homework, not a session**. It is never
-  taught in class, and students may not have done it.
-- `sessions/robust-regression.ipynb` uses `data/outliers.csv`, **not** AnAge.
-  There is no "AnAge in the Day 1 bonus".
-- The Day 1 exercise regresses **`Metabolic rate (W)` on `Body mass (g)`**
-  (Kleiber's law, 627 usable rows) — a different response variable from lifespan.
+Do not use Palmer penguins, AnAge, or an autoencoder latent space. Do not make the
+flow conditional.
 
-So do **not** write "the third treatment of one dataset" or lean on a thread the
-students have not seen. What you *can* honestly say: we met AnAge in the Day 1
-homework, and here we ask a different question of it.
+### What to add: UCI POWER
 
-**Use the right columns.** `Body mass (g)` has only 627 non-null rows. For the
-flow demo use **`Adult weight (g)`** (2,951 non-null); with
-`Maximum longevity (yrs)` that leaves **2,560 complete rows** — which is the "few
-thousand points" the plan assumes. Measured on that subset: log10-log10
-correlation 0.566; 1,088 Aves, 999 Mammalia, 346 Teleostei.
+The MAF paper (Papamakarios, Pavlakou & Murray 2017, arXiv:1705.07057) introduced
+POWER, GAS, HEPMASS, MINIBOONE and BSDS300 to the density-estimation literature.
+Every subsequent flow paper — RealNVP comparisons, NAF, Block-NAF, Neural Spline
+Flows, FFJORD, Glow — reports the same benchmarks. This is the textbook use of a
+normalizing flow, and it fits the notebook's existing
+fit-baselines-then-fit-flow-then-compare structure with no redesign.
 
-**The demo:** fit a *conditional* flow to p(log lifespan | log adult weight) with
-`cond_dim=1`, and compare it against a linear regression **fitted in this
-notebook** (there is no existing lifespan regression to point back to). The
-regression gives E[y|x] with constant Gaussian scatter; the flow gives the whole
-predictive distribution.
+POWER is six dimensions of household electricity measurements, so pairwise
+marginals remain plottable and the existing density and sample plots keep working.
 
-Plot conditional density slices at three or four weights, overlaid with the
-regression's fitted normal at the same points. That contrast is the point of the
-session.
+### Data acquisition
 
-**What the data actually supports**, measured before writing the narrative — state
-these honestly rather than the stronger claims in the original plan:
+Use Papamakarios's preprocessed version, which is what the whole comparison
+literature uses — locate it via the `gpapamak/maf` repository. Fall back to raw UCI
+"Individual household electric power consumption" plus the preprocessing in
+`maf/datasets/power.py` only if the preprocessed archive is unavailable.
 
-- *Heteroscedasticity is mild.* Residual SD by log-weight sextile runs
-  0.228, 0.241, 0.269, 0.270, 0.264, 0.197 — it widens through the middle and
-  narrows at the top, rather than growing monotonically.
-- *"Right-skewed" is not uniform.* Residual skew per sextile is +0.33, −0.21,
-  −0.19, +0.02, −0.10, +0.43 — it changes sign across the range. The flow's
-  advantage here is that the shape *varies with x*, which is a better and more
-  honest point than "the residuals are skewed".
-- *The bats-versus-rodents contrast is real but not as tight as claimed.* Bats
-  (n=88) average log10 weight 1.45 and log10 longevity 1.20; rodents (n=230)
-  average 2.27 and 0.91. So bats are both lighter *and* longer-lived — about 0.8
-  log units apart on the x-axis, not "close together". Look for the bimodality in
-  the overlapping weight range and show a slice there, or drop the claim.
+Preprocessing, per the paper's Appendix D: drop date and time, drop
+discrete-valued attributes and attributes with near-perfect Pearson correlation,
+add small uniform noise to dequantize the rounded measurements, then subtract the
+sample mean and divide by the sample standard deviation. Split 10% test, then 10%
+of the remainder as validation.
 
-**Verify before building:** confirm the conditional API against the installed
-FlowJAX version — `masked_autoregressive_flow(..., cond_dim=1)`,
-`flow.log_prob(x, condition)`, `flow.sample(key, shape, condition=...)`. This is
-the one part of the design that should be checked rather than assumed.
+**The dequantization noise is not optional.** The raw measurements are rounded, so
+without it the flow chases discrete artifacts and the log-likelihood diverges
+upward without bound. Make this an explicit, commented step with a one-line
+explanation — it is a real gotcha and a good teaching moment about likelihoods on
+quantized data.
 
-**Literature to cite,** so students see this is a standard use of flows and not
-an improvisation:
+Route the download through `download_data.py`, cache under `data/`, and
+`.gitignore` it.
 
-- Trippe & Turner 2018 (arXiv:1802.04908), *Conditional Density Estimation with
-  Bayesian Normalising Flows* — flows as a conditional likelihood model,
-  benchmarked on small UCI **regression** datasets against mixture density
-  networks and Bayesian neural nets with homoscedastic Gaussian likelihoods.
-  The closest published analogue to this demo.
-- Winkler et al. 2019, *Learning Likelihoods with Conditional Normalizing Flows*
-  — canonical conditional-flow reference.
-- Rothfuss et al., *Conditional density estimation with neural networks: best
-  practices and benchmarks*.
-- Papamakarios et al. 2021, JMLR 22(57) — review, includes conditional flows.
+### Notebook structure for the new section
 
-**Caveats to state in the notebook, not hide:**
+1. Markdown intro: why move past two moons. In 2D, KDE is genuinely competitive —
+   the first half of this notebook understates the baselines. The case for flows is
+   dimension and sample size: KDE's cost grows with the training set and its
+   quality degrades with dimension, while a flow is a fixed-size model giving exact
+   likelihoods either way.
+2. Load POWER, describe the six variables, show pairwise marginals.
+3. Subsample to roughly 200k training rows so training stays under a couple of
+   minutes. State explicitly that this is a subsample and that it changes the
+   achievable number.
+4. Baselines on the same data: a Gaussian fitted to the training set (the MAF
+   paper's own baseline), a GMM, and KDE. Report test log-likelihood in nats for
+   each, and report KDE's fit and scoring wall-time — the cost is part of the
+   argument.
+5. Fit the MAF, reusing the existing FlowJAX setup with more `flow_layers` and a
+   wider `nn_width`. Keep the train/validation loss curve visible.
+6. Compare test log-likelihood in nats across all four models. Compare flow samples
+   against the data marginals.
+7. Discussion cell with the published numbers: MAF(10) reaches 0.24 ± 0.01 nats on
+   POWER against RealNVP(10) at 0.17 ± 0.01, and NAF later reached 0.62 ± 0.01.
+   Across the five benchmarks, MAF was best on three and MADE MoG on the other two.
 
-1. Flows do not automatically win here. On small tabular data with a 1D
-   response, mixture density networks are strong competitors, and Trippe &
-   Turner reach state of the art on *some* of their six benchmarks, not all. If
-   time allows, add a small MDN as a third comparison. Report the measured
-   result whichever way it falls.
-2. Species are not independent samples. AnAge rows share phylogeny, so this is a
-   density over extant species as sampled, not over a biological population. The
-   Day 1 regression already makes this assumption silently; naming it here is a
-   free correction.
-3. With ~2,560 points a spline flow can overfit. Keep the validation curve
-   visible and let `max_patience` do its job — watching a flow overfit is itself
-   instructive.
+**Do not promise to reproduce 0.24 nats.** That is ten layers with the paper's
+hyperparameter search on the full dataset. Frame it as "our number against the
+published one" and let the gap be the discussion.
 
-**Housekeeping in the same pass:**
+### Exercises
 
-- Logo path is `img/logo.png`; every other session uses `../logo.png`. Fix.
-- No "In this session we will understand:" intro cell. Add one.
-- No Colophon cell — this is the only session notebook missing the CC BY-SA
-  block. Add it, copied verbatim from a sibling notebook.
-- Add one sentence acknowledging that this notebook uses FlowJAX and Equinox
-  rather than Keras or raw JAX. It is the only one that does, and students will
-  otherwise wonder why the API changed. The justification: no Keras flow
-  implementation is worth teaching.
-- Replace at least two of the four knob-turning exercises with questions about
-  the conditional model (e.g. predict the conditional median and a 90% interval
-  at a given body mass; compare against the regression's interval).
+Replace at least two of the four existing knob-turning exercises:
 
-Session budget is unchanged at 1.5 AH: roughly 45 minutes for the existing
-two-moons material and 30 for the AnAge conditional example.
+- Fit the same flow to MINIBOONE — 43 dimensions, only 36k rows, the smallest
+  download of the five — and compare against the Gaussian and GMM baselines. This
+  is where the baselines stop being competitive at all.
+- Compare KDE fit-and-score time against flow training-and-score time as a
+  function of training-set size.
 
-Do **not** add a Palmer penguins example.
+Keep the existing exercises on `flow_layers` / `nn_width` / spline knots.
 
----
+### Housekeeping in the same pass
+
+- Logo path is `img/logo.png`; every other session uses `../logo.png`. **Verified:**
+  in the *opening* cell only `flow.ipynb` and `jax.ipynb` use `img/logo.png`;
+  `CNN_timeseries.ipynb` has no logo image at all. Fix `flow.ipynb` here, and fix
+  `jax.ipynb` and `CNN_timeseries.ipynb` in the same pass since it is one line each.
+  (`K_FFN.ipynb` also matches a grep for `img/logo.png`, but that is a Keras logo in
+  its body, not the course logo — leave it.)
+- Add the missing "In this session we will understand:" intro cell. **Note:** only
+  4 of 17 session notebooks currently have this opening (`GAN`, `K_CNN`, `K_FFN`,
+  `audio`), so §8's house style is aspirational rather than universal. Adding it
+  here is still right; just do not expect the other notebooks to match.
+- Add the missing Colophon cell with the CC BY-SA 4.0 block, copied verbatim from a
+  sibling session notebook. **Verified:** `flow.ipynb` really is the only session
+  notebook without one.
+- Add one sentence acknowledging that this notebook uses FlowJAX and Equinox rather
+  than Keras or raw JAX — it is the only one that does, and students will otherwise
+  wonder why the API changed. The reason: no Keras flow implementation is worth
+  teaching.
+- Confirm `flowjax` is in `requirements.txt`. **Verified present** (line 20), added
+  in Phase 6.
+- Keep the framing that autoencoders learn a representation with no density, flows
+  learn a density you can evaluate and sample, and GANs learn to sample without
+  writing down a density. Do not call autoencoders generative models.
+
+### References to add
+
+- Papamakarios, Pavlakou & Murray 2017, *Masked Autoregressive Flow for Density
+  Estimation*, arXiv:1705.07057 — already cited; add the benchmark table as the
+  source of the reported numbers.
+- Durkan et al. 2019, *Neural Spline Flows*, arXiv:1906.04032 — the
+  rational-quadratic splines the notebook already uses.
+- Papamakarios et al. 2021, *Normalizing Flows for Probabilistic Modeling and
+  Inference*, JMLR 22(57).
+- One sentence, no demo: Rezende & Mohamed 2015 named normalizing flows and used
+  them for variational inference, which is the other classical application.
+
+### Acceptance criteria
+
+- Notebook runs top to bottom on GPU; record wall-clock time and confirm the new
+  section fits in ~30 minutes of class time, with a checkpoint provided if training
+  exceeds that.
+- Report the measured test log-likelihood in nats for Gaussian, GMM, KDE and flow on
+  POWER, so the discussion cell can be written around real numbers rather than
+  expected ones.
+- No new dependencies beyond `flowjax`; no `torch`, `tensorflow`, or
+  `tensorflow_datasets`.
+- Total session budget unchanged at 1.5 AH.
+
+### Two practical warnings before starting
+
+1. **KDE cannot be scored naively at this scale.** POWER has ~2.05M rows, so a 10%
+   test split is ~200k points. `sklearn`'s `KernelDensity` costs
+   O(n_train x n_test), which at 200k x 200k is ~4e10 kernel evaluations and will
+   not finish. Score KDE on a fixed random subsample of the test set (a few
+   thousand points) and say so in the notebook — and note that the wall-time
+   comparison in step 4 is then a *lower bound* on KDE's real cost, which
+   strengthens rather than weakens the argument.
+2. **The acceptance criteria say GPU, which moves this phase.** Phase 7 was
+   scheduled as local CPU work when it was the two-moons-plus-AnAge design. A
+   6-dimensional MAF with more layers over 200k rows is a different proposition.
+   Decide before starting whether Phase 7 stays local or joins the GPU handoff; if
+   it stays local, time a short pilot run first.
 
 ## 5. Phase 4 — ❌ VOID. `sessions/finetuning.ipynb` has been deleted
 
