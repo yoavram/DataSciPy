@@ -104,15 +104,25 @@ Decided after Phase 6 and applied on top of it:
   `data/poker-hand-testing.data` / `data/poker-hand-training-true.data`, which
   belong to nanochat (verified byte-identical to the copies there before
   deleting).
-- **`autoencoders-plan.md` and `density_plan.md` reviewed.** `density_plan.md` has
-  already been executed — it is what turned the old `density-estimation.ipynb`
-  into today's `sessions/flow.ipynb`, and §4b here is the next step past it.
-  `autoencoders-plan.md` is **not** executed: it proposes a real upgrade to
-  `sessions/autoencoders.ipynb` (latent-space visualization, bottleneck sweep,
-  convolutional autoencoder, structured denoising) and flags a genuine bug —
-  `jax.random.choice(..., X_test.shape[1], ...)` should be `shape[0]`, so the
-  reconstruction preview samples from only the first 28 test images. **This is the
-  obvious candidate for the 2 unbudgeted academic hours on Day 4** (correction 10).
+- **`autoencoders-plan.md` and `density_plan.md` reviewed. Both are largely
+  spent.** `density_plan.md` is what turned the old `density-estimation.ipynb`
+  into today's `sessions/flow.ipynb`; §4b here is the next step past it.
+  `autoencoders-plan.md` has *also* mostly been carried out already, against what
+  its own text implies: `sessions/autoencoders.ipynb` now runs intro → dense
+  baseline → bottleneck sweep → 2D latent space with a labelled scatter →
+  convolutional autoencoder → structured denoising (σ, warm-started from the conv
+  model) → exercises → references → colophon, 28 cells. The indexing bug the plan
+  flags is already fixed (`X_test.shape[0]`), and the unused `pickle` import and
+  one-hot labels it complains about are gone.
+
+  What is genuinely left from that plan is small: **latent interpolation**
+  (encode two digits, decode along the line between them) and **reconstruction
+  diagnostics** (best and worst reconstructions by per-image loss), plus its
+  optional extensions — anomaly detection via reconstruction error, encoder
+  features for a downstream classifier, or a VAE teaser. That is perhaps 0.5 AH
+  of material, so **it does not on its own close Day 4's 2 AH gap** (correction
+  10). Both `autoencoders-plan.md` and `density_plan.md` can be archived or
+  deleted; only these leftovers are worth carrying forward.
 
 ### Corrections to this plan, found while executing it
 
@@ -165,7 +175,9 @@ Decided after Phase 6 and applied on top of it:
 10. **§1 Day 4 hours do not add up.** The header says 6.5 AH but the sessions sum
     to 4.5 (autoencoders 2 + flow 1.5 + GAN 1). Days 1, 2 and 3 each sum to 6.5
     correctly. Day 4 therefore has 2 AH unaccounted for — either the budget is
-    wrong or the day needs more material. **Needs a decision.**
+    wrong or the day needs more material. **Needs a decision**, and note that the
+    leftovers in `autoencoders-plan.md` amount to only about 0.5 AH, so they do
+    not close the gap by themselves.
 11. **§7's dataset list for `download_data.py` is incomplete.** Auditing every
     `../data/` reference in the notebooks turns up two more downloads the course
     needs: SpeechEmotion (`exercises/audio.ipynb`) and the Sign-Language
