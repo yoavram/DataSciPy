@@ -15,15 +15,22 @@ Maintained as work lands. Last updated 2026-08-31.
 
 Branch `DL2026` is pushed to `origin` and tracks `origin/DL2026`.
 
+**Phase numbering.** The old "Phase 3b" is now **Phase 7**, and the autoencoders
+work added below is **Phase 8**. Section numbers (§2, §3, §4b, §12, …) are frozen
+document anchors and do *not* track phase numbers — `DL2026_GPU_HANDOFF.md` cites
+them, and the Phase 1 and Phase 6 commit messages are already in the history.
+Read the status table as the index of what to do.
+
 | Phase | Status | Where | Notes |
 |---|---|---|---|
-| 1 (§2) Branch assembly | **DONE** | local, commit `313621a` | branch `DL2026` created off `origin/DeepLearning` |
+| 1 (§2) Branch assembly | **DONE** | local, `313621a` | branch `DL2026` created off `origin/DeepLearning` |
 | 2 (§3) `sessions/transfer.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
 | 3 (§4) `sessions/audio.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
-| 3b (§4b) `sessions/flow.ipynb` | TODO | local | FlowJax conditional API verified, see below |
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
-| 6 (§7) index / env / data | **DONE** | local, commit pending | one pending link: `sessions/transfer.ipynb` (Phase 2) |
+| 6 (§7) index / env / data | **DONE** | local, `e568f74` | one pending link: `sessions/transfer.ipynb` (Phase 2) |
+| 7 (§4b) `sessions/flow.ipynb` | **TODO** | local | was "Phase 3b"; FlowJAX conditional API verified, and §4b's AnAge story corrected |
+| 8 (§12) `sessions/autoencoders.ipynb` | **TODO** | local | small; finishes off `autoencoders-plan.md` |
 | 9 (§9) Validation | PARTIAL only | local + remote | full GPU notebook runs depend on Phases 2/3 |
 
 ### Phase 1 — what actually happened
@@ -194,6 +201,28 @@ Decided after Phase 6 and applied on top of it:
     dependency. `optax` and `palmerpenguins` are imported by no notebook
     (`optax` is a FlowJax dependency, `palmerpenguins` regenerates the CSV); both
     kept, as §7 asks.
+
+15. **§4b's AnAge callback story was wrong in three ways.** Checked against the
+    notebooks: (a) AnAge appears only in `exercises/linear-anage.ipynb` and its
+    solution, which is **Day 1 homework, not a session** — the apparent hit in
+    `sessions/linear_regression.ipynb` is base64 image data, not a reference;
+    (b) `sessions/robust-regression.ipynb` uses `data/outliers.csv`, **not**
+    AnAge, so there is no AnAge treatment in the Day 1 bonus and the "third
+    treatment of one dataset" thread does not exist; (c) the Day 1 exercise is
+    Kleiber's law — `Metabolic rate (W)` on `Body mass (g)` — so it does not share
+    a response variable with a lifespan model. Also, `Body mass (g)` has only 627
+    non-null rows; the flow demo needs `Adult weight (g)` (2,951 non-null, 2,560
+    complete with `Maximum longevity (yrs)`). §4b is rewritten accordingly, with
+    the measured heteroscedasticity, skew and bats-versus-rodents numbers in place
+    of the assumed ones.
+16. **`autoencoders-plan.md` is nearly spent, contrary to what its text implies.**
+    The bottleneck sweep, the 2D latent scatter, **latent interpolation**, the
+    convolutional autoencoder and the structured denoising section are all already
+    in `sessions/autoencoders.ipynb`, the indexing bug is fixed, and the unused
+    imports are gone. Only reconstruction diagnostics (currently just exercise 5)
+    and one optional extension remain — see §12 / Phase 8. This also
+    supersedes the note in an earlier progress entry that called the document
+    unexecuted.
 
 ---
 
@@ -427,7 +456,9 @@ measured numbers in the notebook.
 
 ---
 
-## 4b. Phase 3b — Add a real example to `sessions/flow.ipynb`  ⬜ TODO (local)
+## 4b. Phase 7 — Add a real example to `sessions/flow.ipynb`  ⬜ TODO (local)
+
+*(This was "Phase 3b". Section number kept as an anchor.)*
 
 The notebook is currently toy-only: `make_moons` throughout (2,500 points), KDE
 and GMM baselines, then a masked autoregressive flow with rational-quadratic
@@ -435,26 +466,54 @@ splines that trains in about two seconds. The exercises are knob-turning. Keep
 all of this as the first half — it is a good, compact motivation — and add a
 real conditional example as the second half.
 
-**Dataset: AnAge** (`data/anage_data.txt`, already in the repo and already used
-in `exercises/linear-anage.ipynb` on Day 1). Log body mass and log maximum
-lifespan.
+**Dataset: AnAge** (`data/anage_data.txt`, 4,219 rows, committed to the repo).
 
-**The demo:** fit a *conditional* flow to p(log lifespan | log body mass) with
-`cond_dim=1`, and compare it against the Day 1 linear regression on the same
-data. The regression gives E[y|x] with constant Gaussian scatter. The flow gives
-the whole predictive distribution, which for life-history data is
-heteroscedastic and right-skewed, and may be multimodal at a given body mass —
-bats and rodents sit close together on the x-axis and far apart on the y-axis.
+**Read correction 15 before building this.** The callback story in the original
+plan was wrong in three ways, and the corrected version is:
 
-Plot conditional density slices at three or four body masses, overlaid with the
+- AnAge appears in the workshop exactly **once**, in `exercises/linear-anage.ipynb`
+  and its solution — which is **Day 1 homework, not a session**. It is never
+  taught in class, and students may not have done it.
+- `sessions/robust-regression.ipynb` uses `data/outliers.csv`, **not** AnAge.
+  There is no "AnAge in the Day 1 bonus".
+- The Day 1 exercise regresses **`Metabolic rate (W)` on `Body mass (g)`**
+  (Kleiber's law, 627 usable rows) — a different response variable from lifespan.
+
+So do **not** write "the third treatment of one dataset" or lean on a thread the
+students have not seen. What you *can* honestly say: we met AnAge in the Day 1
+homework, and here we ask a different question of it.
+
+**Use the right columns.** `Body mass (g)` has only 627 non-null rows. For the
+flow demo use **`Adult weight (g)`** (2,951 non-null); with
+`Maximum longevity (yrs)` that leaves **2,560 complete rows** — which is the "few
+thousand points" the plan assumes. Measured on that subset: log10-log10
+correlation 0.566; 1,088 Aves, 999 Mammalia, 346 Teleostei.
+
+**The demo:** fit a *conditional* flow to p(log lifespan | log adult weight) with
+`cond_dim=1`, and compare it against a linear regression **fitted in this
+notebook** (there is no existing lifespan regression to point back to). The
+regression gives E[y|x] with constant Gaussian scatter; the flow gives the whole
+predictive distribution.
+
+Plot conditional density slices at three or four weights, overlaid with the
 regression's fitted normal at the same points. That contrast is the point of the
 session.
 
-This makes AnAge the third treatment of one dataset across the workshop —
-regression on Day 1, robust regression as the Day 1 bonus that handles outliers
-by widening the tails, and a flow on Day 4 that stops assuming a shape at all.
-Preserve that thread explicitly in the narrative; it is worth more than a new
-dataset would be.
+**What the data actually supports**, measured before writing the narrative — state
+these honestly rather than the stronger claims in the original plan:
+
+- *Heteroscedasticity is mild.* Residual SD by log-weight sextile runs
+  0.228, 0.241, 0.269, 0.270, 0.264, 0.197 — it widens through the middle and
+  narrows at the top, rather than growing monotonically.
+- *"Right-skewed" is not uniform.* Residual skew per sextile is +0.33, −0.21,
+  −0.19, +0.02, −0.10, +0.43 — it changes sign across the range. The flow's
+  advantage here is that the shape *varies with x*, which is a better and more
+  honest point than "the residuals are skewed".
+- *The bats-versus-rodents contrast is real but not as tight as claimed.* Bats
+  (n=88) average log10 weight 1.45 and log10 longevity 1.20; rodents (n=230)
+  average 2.27 and 0.91. So bats are both lighter *and* longer-lived — about 0.8
+  log units apart on the x-axis, not "close together". Look for the bimodality in
+  the overlapping weight range and show a slice there, or drop the claim.
 
 **Verify before building:** confirm the conditional API against the installed
 FlowJAX version — `masked_autoregressive_flow(..., cond_dim=1)`,
@@ -486,9 +545,9 @@ an improvisation:
    density over extant species as sampled, not over a biological population. The
    Day 1 regression already makes this assumption silently; naming it here is a
    free correction.
-3. With a few thousand points a spline flow can overfit. Keep the validation
-   curve visible and let `max_patience` do its job — watching a flow overfit is
-   itself instructive.
+3. With ~2,560 points a spline flow can overfit. Keep the validation curve
+   visible and let `max_patience` do its job — watching a flow overfit is itself
+   instructive.
 
 **Housekeeping in the same pass:**
 
@@ -668,3 +727,57 @@ Match the existing house style exactly:
 - The legacy branches (`kti2018`, `kti2020`, `amat2019`, `trees`, `lam2020`,
   `lam2021`, `intuit`, `landa`, `IDC2018`) and their `reinforcement.ipynb` /
   `FFN_GenModel.ipynb` / `TF_CNN.ipynb` material.
+
+---
+
+## 12. Phase 8 — Finish `sessions/autoencoders.ipynb`  ⬜ TODO (local)
+
+Closes out `autoencoders-plan.md`. **This is a small stage** — most of that
+document has already been carried out (correction 16). Verified present in the
+notebook today, 28 cells: intro and framing, dense baseline, bottleneck sweep
+over `latent_dims`, a 2D latent space with a labelled scatter, **latent
+interpolation** (cell 15 encodes a `1` and an `8` and decodes along the path),
+convolutional autoencoder with a dense-versus-conv comparison, structured
+denoising at fixed σ warm-started from the conv model, exercises, references,
+colophon. The `X_test.shape[1]` indexing bug is fixed, the unused `pickle` import
+is gone, and `Y_test` is genuinely used (cell 15 selects digits by label).
+
+Two things are left.
+
+**1. Reconstruction diagnostics, in the notebook body.** Currently this exists
+only as exercise 5 ("Plot the test images with the largest reconstruction
+error"). Promote it to a worked cell:
+
+- per-image MSE over the validation set, then show the best and worst
+  reconstructions side by side;
+- mean reconstruction error broken down by digit class, as a bar plot;
+- one or two sentences on the failure modes — which digits blur, and whether the
+  model hedges on ambiguous ones.
+
+The teaching point is inspecting a trained model rather than only training it.
+Replace exercise 5 with something that is not now redundant.
+
+**2. One extension, not several.** `autoencoders-plan.md` offers three; pick the
+second:
+
+- **Encoder features for a downstream classifier** ← recommended. Freeze the
+  trained encoder, take the latent vectors as features, and fit a small Keras
+  softmax head on them; compare against the same head on raw pixels. This is the
+  *same protocol* as the linear probe in Day 3's `sessions/transfer.ipynb`, with
+  the representation coming from an autoencoder trained on the data itself rather
+  than from ImageNet. Making that parallel explicit is worth more than a new
+  technique, and it ties Day 4 back to Day 3.
+- Anomaly detection via reconstruction error — already named in the intro's
+  "typical uses" list but never shown. Cheap, but a weaker link to the rest.
+- A VAE teaser. Keep to a short "what comes next" markdown cell if wanted; do not
+  implement a VAE here.
+
+**Budget.** About 0.5 AH, taking the session from 2 to 2.5 AH. That does not on
+its own close Day 4's 2 AH gap (correction 10) — the gap needs a separate
+decision.
+
+**Housekeeping in the same pass:** check whether `Y_train` is still unused (only
+`Y_test` is needed for the label-based selections) and drop it if so.
+
+After this lands, `autoencoders-plan.md` and `density_plan.md` are both fully
+spent and can be deleted.
