@@ -30,6 +30,7 @@ data/CUB_200_2011
 data/Dataset
 data/ESC-50-master
 data/FashionMNIST
+data/maf
 data/MNIST
 data/SpeechEmotion-master
 data/sign-lang

@@ -29,9 +29,9 @@ Read the status table as the index of what to do.
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | one pending link: `sessions/transfer.ipynb` (Phase 2) |
-| 7 (§4b) `sessions/flow.ipynb` | **TODO** | local? see §4b | was "Phase 3b"; **respecified 2026-08-31** as UCI POWER density estimation, not conditional AnAge |
+| 7 (§4b) `sessions/flow.ipynb` | **DELEGATED** | remote GPU agent | respecified as UCI POWER, then moved to `DL2026_GPU_HANDOFF.md` §4b |
 | 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
-| 9 (§9) Validation | PARTIAL only | local + remote | full GPU notebook runs depend on Phases 2/3 |
+| 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; full GPU runs depend on Phases 2, 3 and 7 |
 
 ### Phase 1 — what actually happened
 
@@ -458,7 +458,7 @@ measured numbers in the notebook.
 
 ---
 
-## 4b. Phase 7 — Add a real density-estimation example to `sessions/flow.ipynb`  ⬜ TODO
+## 4b. Phase 7 — Add a real density-estimation example to `sessions/flow.ipynb`  ➡️ DELEGATED to remote GPU agent (`DL2026_GPU_HANDOFF.md` §4b)
 
 *(This was "Phase 3b". Section number kept as a document anchor.)*
 
@@ -611,11 +611,20 @@ Keep the existing exercises on `flow_layers` / `nn_width` / spline knots.
    thousand points) and say so in the notebook — and note that the wall-time
    comparison in step 4 is then a *lower bound* on KDE's real cost, which
    strengthens rather than weakens the argument.
-2. **The acceptance criteria say GPU, which moves this phase.** Phase 7 was
-   scheduled as local CPU work when it was the two-moons-plus-AnAge design. A
-   6-dimensional MAF with more layers over 200k rows is a different proposition.
-   Decide before starting whether Phase 7 stays local or joins the GPU handoff; if
-   it stays local, time a short pilot run first.
+2. **Resolved: Phase 7 moved to the GPU handoff** (2026-08-31). The acceptance
+   criteria call for GPU, and a 6-dimensional MAF with more layers over 200k rows is
+   a different proposition from the two-moons design this phase started as. It is now
+   `DL2026_GPU_HANDOFF.md` §4b, alongside Phases 2 and 3. The housekeeping items in
+   this section moved with it, including the `sessions/jax.ipynb` logo fix.
+
+3. **Resolved: the data is wired up.** `download_data.py maf-benchmarks` fetches
+   Papamakarios's preprocessed datasets — Zenodo record 1161203, CC-BY-4.0, a single
+   857 MB `data.tar.gz` — and lands them at `data/maf/power/` and
+   `data/maf/miniboone/`. The archive's own top-level directory is called `data`, so
+   the loader strips that component to avoid colliding with the repo's `data/`, and it
+   filters out `gas`, `hepmass`, `bsds300`, `mnist` and `cifar10` to save ~650 MB.
+   `data/maf` is gitignored. The strip-and-filter logic was tested against a synthetic
+   archive mirroring the real layout.
 
 ## 5. Phase 4 — ❌ VOID. `sessions/finetuning.ipynb` has been deleted
 

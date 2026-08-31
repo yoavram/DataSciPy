@@ -1,22 +1,29 @@
 # DL2026 — GPU handoff: Phases 2 and 3
 
 **For:** an agentic coding session on a machine with a CUDA GPU.
-**Scope:** exactly two notebooks — `sessions/transfer.ipynb` (new) and
-`sessions/audio.ipynb` (restructure). Nothing else.
+**Scope:** exactly three notebooks — `sessions/transfer.ipynb` (new),
+`sessions/audio.ipynb` (restructure) and `sessions/flow.ipynb` (extend). Nothing
+else.
 
 This document is self-contained; you do not need the conversation it came from.
 `DL2026_PLAN.md` in the repo root is the full course plan and the authority on
-anything not covered here (§3 is Phase 2, §4 is Phase 3). `CLAUDE.md` has the
-repository conventions. Read both before starting.
+anything not covered here (its §3 is Phase 2, §4 is Phase 3, §4b is Phase 7).
+`CLAUDE.md` has the repository conventions. Read both before starting.
+
+**Phase 7 (`flow.ipynb`) was added to this handoff on 2026-08-31**, having been
+planned as local CPU work. Its spec lives in `DL2026_PLAN.md` §4b; §4b of *this*
+document covers only what changes because you are running it on a GPU.
 
 ---
 
 ## 0. Why this work is remote
 
-Both notebooks train ImageNet-scale backbones (EfficientNetV2S) on several
-thousand images. Neither is feasible on the CPU-only laptop where the rest of
-the branch is being assembled. Everything else in the plan is being done locally
-in parallel — see §5 for the file boundaries that keep us from colliding.
+Two of these notebooks train ImageNet-scale backbones (EfficientNetV2S) on
+several thousand images, and the third fits a masked autoregressive flow to
+~200k rows in six dimensions. None is feasible on the CPU-only laptop where the
+rest of the branch is being assembled — for calibration, `sessions/autoencoders.ipynb`
+takes 25 minutes there, at ~50 s/epoch for a two-layer convolutional autoencoder
+on MNIST. Everything else in the plan is done: see §5 for the file boundaries.
 
 ---
 
@@ -248,10 +255,72 @@ win. Record the measured numbers in the notebook itself, not just in your report
 Note ESC-50 ships with 5 official folds; if you use a single fold split rather
 than proper cross-validation, say so explicitly in the notebook.
 
+## 4b. Phase 7 — extend `sessions/flow.ipynb` with UCI POWER
+
+**The full specification is `DL2026_PLAN.md` §4b. Read it.** It is detailed and
+current, and it supersedes an earlier conditional-AnAge design that was abandoned —
+do not resurrect anything involving AnAge, Palmer penguins, autoencoder latent
+spaces, or a conditional flow. This section adds only the operational detail.
+
+Day 4 session, 1.5 academic hours. Keep the existing `make_moons` material as the
+first half (~45 min) and add UCI POWER — the MAF paper's own benchmark — as the
+second half (~30 min).
+
+**The data is already wired up.** `download_data.py` fetches it:
+
+```bash
+.venv/bin/python download_data.py maf-benchmarks
+```
+
+That pulls Papamakarios's preprocessed datasets (Zenodo record 1161203, CC-BY-4.0,
+a single 857 MB `data.tar.gz`) and lands them at **`data/maf/power/`** and
+**`data/maf/miniboone/`**. Two things to know about it: the archive's own top-level
+directory is called `data`, which would have collided with the repo's, so the
+loader strips that component; and it also contains `gas`, `hepmass`, `bsds300`,
+`mnist` and `cifar10`, which are filtered out to save ~650 MB. If you need one of
+those for an exercise, add it to the entry's `keep` tuple and re-run — but note
+that by default the archive is deleted after extraction, so pass
+`--keep-archives` if you expect to want the others.
+
+`data/maf` is gitignored.
+
+**Three things that will bite you**, in order of likelihood:
+
+1. **The dequantization noise is not optional.** POWER's measurements are rounded,
+   so without adding small uniform noise the flow chases discrete artifacts and the
+   log-likelihood diverges upward without bound — you will think you have a great
+   model. Make it an explicit, commented step. It is one of the better teaching
+   moments in the notebook.
+2. **KDE cannot be scored naively at this scale.** POWER is ~2.05M rows, so a 10%
+   test split is ~200k points, and `sklearn`'s `KernelDensity` costs
+   O(n_train x n_test) — around 4e10 kernel evaluations, which will not finish.
+   Score KDE on a fixed random subsample of the test set (a few thousand points)
+   and say so in the notebook. The wall-time comparison is then a *lower bound* on
+   KDE's real cost, which strengthens the argument rather than weakening it.
+3. **Do not promise to reproduce 0.24 nats.** The published MAF(10) figure comes
+   from ten layers with the paper's hyperparameter search on the full dataset.
+   Report your number against the published one and let the gap be the discussion.
+
+**Housekeeping in the same pass** (all listed in §4b of the plan, all verified):
+`flow.ipynb` has no Colophon cell — it is the only session notebook missing one, so
+copy it verbatim from a sibling. Its opening cell uses `img/logo.png` where the rest
+use `../logo.png`; fix it here, and fix `sessions/jax.ipynb` too since it is the same
+one-line change. Add the "In this session we will understand:" intro cell. Add one
+sentence explaining that this notebook alone uses FlowJAX and Equinox rather than
+Keras, because no Keras flow implementation is worth teaching. `flowjax` is already
+in `requirements.txt`.
+
+**GPU note.** FlowJAX runs on JAX, so it picks up the GPU with no code change once
+`jax[cuda12]` is installed — but confirm with `jax.devices()` and print it in the
+notebook the way the Keras sessions print their backend. If the flow trains in
+seconds on your GPU, consider whether the ~200k-row subsample in the plan should be
+larger; say what you chose and why.
+
 ## 5. Boundaries — do not touch these
 
-Work in parallel locally covers the rest of the plan. To keep the merge clean,
-**only** create `sessions/transfer.ipynb` and edit `sessions/audio.ipynb`.
+The rest of the plan is already done locally. To keep the merge clean, **only**
+create `sessions/transfer.ipynb` and edit `sessions/audio.ipynb` and
+`sessions/flow.ipynb`.
 
 Specifically, do **not** edit:
 
@@ -260,15 +329,19 @@ Specifically, do **not** edit:
   branch; it resolves the moment your work merges. Do not edit the index.
 - `requirements.txt` — **already complete**. If you needed something extra,
   report it rather than editing the file.
-- `download_data.py` — **already written**, and it fetches both CUB and ESC-50.
-  Use it. If your notebooks do their own downloading (fine, and closer to the
-  teaching style), still tell us the URLs and cache paths you used so the two
-  stay consistent.
+- `download_data.py` — **already written**, and it fetches CUB, ESC-50 and the MAF
+  benchmarks. Use it. If your notebooks do their own downloading (fine, and closer
+  to the teaching style), still tell us the URLs and cache paths you used so the
+  two stay consistent. The one edit you may make here is adding a dataset to the
+  `keep` tuple of the `maf-benchmarks` entry — say so in your report.
 - `LOCAL_SETUP.md`, `.gitignore` — done in Phase 6. Note that `.gitignore` now
   covers `data/CUB_200_2011`, `data/ESC-50-master`, `*.keras`, `*.h5` and
   `*.tgz`, so your downloads and checkpoints stay untracked automatically.
-- `sessions/flow.ipynb`, `DL2026_PLAN.md`, `CLAUDE.md`, anything under
+- `DL2026_PLAN.md`, `CLAUDE.md`, `sessions/autoencoders.ipynb`, anything under
   `exercises/` or `solutions/`.
+
+`sessions/flow.ipynb` **is now yours** (Phase 7, §4b above) — it used to be on this
+list and no longer is.
 
 One warning inherited from the notebook that used to live here: it split
 `train_test_split` over *annotation* indices rather than *image* ids, so crops
@@ -278,7 +351,7 @@ invent a random split.
 
 ## 6. Deliverables
 
-1. Branch `DL2026-gpu` pushed, with the two notebooks committed **with outputs**.
+1. Branch `DL2026-gpu` pushed, with the three notebooks committed **with outputs**.
    One commit per phase is fine.
 2. The trained checkpoints under `data/` — these are gitignored, so hand them
    over out of band (the machine's path is enough if the box is reachable, or
@@ -290,6 +363,9 @@ invent a random split.
    - **measured** top-1/top-5 for CUB probe vs fine-tune, over 2 seeds;
    - **measured** ESC-50 accuracy for from-scratch vs probe vs fine-tune, and
      specifically **whether the probe beat the from-scratch CNN**;
+   - **measured** test log-likelihood in nats on POWER for all four models -
+     Gaussian, GMM, KDE and the flow - plus KDE's fit-and-score wall-time and the
+     size of the test subsample you scored it on;
    - wall-clock time per notebook, end to end, and per training cell;
    - the dataset URLs and cache paths you used;
    - anything in this document that turned out to be wrong.
@@ -303,9 +379,10 @@ Run these before handing back:
 grep -rl "import torch\|import tensorflow\|from tensorflow\|tensorflow_datasets" --include='*.ipynb' sessions exercises solutions
 #    ^ must print nothing
 
-# 2. both notebooks execute top to bottom from a clean kernel
+# 2. all three notebooks execute top to bottom from a clean kernel
 .venv/bin/jupyter nbconvert --to notebook --execute --inplace sessions/transfer.ipynb
 .venv/bin/jupyter nbconvert --to notebook --execute --inplace sessions/audio.ipynb
+.venv/bin/jupyter nbconvert --to notebook --execute --inplace sessions/flow.ipynb
 
 # 3. no datasets or weights staged
 git status --short

@@ -53,6 +53,21 @@ ARCHIVES = {
         size="~4 MB",
         why="exercises/audio.ipynb (Day 3 homework)",
     ),
+    "maf-benchmarks": dict(
+        # Papamakarios's preprocessed datasets for the MAF paper (Zenodo 1161203,
+        # CC-BY-4.0). One 857 MB tarball holding all five density-estimation
+        # benchmarks plus mnist and cifar10, which we do not need. Its top level is
+        # itself called "data", so we strip that component and keep only the two
+        # datasets the course uses.
+        url="https://zenodo.org/api/records/1161203/files/data.tar.gz/content",
+        archive="maf_data.tar.gz",
+        target="maf",
+        into="maf",
+        strip=1,
+        keep=("power", "miniboone"),
+        size="857 MB download, ~200 MB kept",
+        why="sessions/flow.ipynb (Day 4); miniboone is for its exercise",
+    ),
 }
 
 # Everything else: Keras datasets, pretrained weights, and a generated CSV.
@@ -134,14 +149,39 @@ def download_file(url, path):
     os.replace(part, path)
 
 
-def extract(path, into):
+def extract(path, into, strip=0, keep=None):
+    """Extract path into `into`.
+
+    strip: drop this many leading path components (like tar --strip-components).
+    keep:  if given, only extract members whose stripped path starts with one of
+           these prefixes.
+    """
+    os.makedirs(into, exist_ok=True)
     if path.endswith(".zip"):
+        if strip or keep:
+            raise ValueError("strip/keep are only implemented for tar archives")
         with zipfile.ZipFile(path) as z:
             z.extractall(into)
     elif path.endswith((".tar.gz", ".tgz", ".tar")):
         with tarfile.open(path) as t:
-            # filter='data' refuses absolute paths and paths escaping the target
-            t.extractall(into, filter="data")
+            if not strip and not keep:
+                # filter='data' refuses absolute paths and paths escaping the target
+                t.extractall(into, filter="data")
+                return
+            members = []
+            for m in t.getmembers():
+                parts = m.name.split("/")[strip:]
+                if not parts or not parts[0]:
+                    continue
+                if keep and parts[0] not in keep:
+                    continue
+                m.name = "/".join(parts)
+                members.append(m)
+            if not members:
+                raise tarfile.TarError(
+                    f"no members matched keep={keep} after stripping {strip} component(s)"
+                )
+            t.extractall(into, members=members, filter="data")
     else:
         raise ValueError(f"do not know how to extract {path}")
 
@@ -161,10 +201,11 @@ def fetch_archive(name, spec, keep_archive=False):
             return
     else:
         print(f"    using cached archive: {archive}")
+    into = os.path.join(DATA, spec["into"]) if spec.get("into") else DATA
     print(f"    extracting to {target}")
     try:
-        extract(archive, DATA)
-    except (zipfile.BadZipFile, tarfile.TarError) as e:
+        extract(archive, into, strip=spec.get("strip", 0), keep=spec.get("keep"))
+    except (zipfile.BadZipFile, tarfile.TarError, ValueError) as e:
         print(f"    FAILED to extract ({e}); delete {archive} and try again")
         return
     if not keep_archive:
