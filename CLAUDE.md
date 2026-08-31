@@ -34,8 +34,9 @@ Consequences:
 JAX for from-scratch derivations; Keras 3 on the JAX backend for applied work.
 **Do not introduce `torch`, `tensorflow`, `transformers`, or `tensorflow_datasets`**
 into notebooks on this branch — including indirectly via a dataset loader. Datasets
-are downloaded and parsed by hand (`urllib` + `tarfile`/`zipfile` + PIL/NumPy);
-`sessions/finetuning.ipynb` has the reference loader to copy.
+are downloaded and parsed by hand (`urllib` + `tarfile`/`zipfile` + PIL/NumPy) or
+fetched by `download_data.py`; `DL2026_GPU_HANDOFF.md` §2a has the reference
+loader to copy.
 
 The backend is selected globally by `~/.keras/keras.json` (`"backend": "jax"`), so
 session notebooks import `keras` directly with no `KERAS_BACKEND` dance. `index.ipynb`
@@ -103,7 +104,7 @@ in sync. `index.ipynb` links both as `[assignment](...) | [solution](...)`.
 `data/` holds small committed teaching datasets (`anage_data.txt`, `FordA_*.tsv`,
 `heart.csv`, …). Large or downloadable artifacts are gitignored by extension
 (`*.keras`, `*.h5`, `*.npz`, `*.tar.gz`, `*.zip`, `*.pt`, …) and by directory
-(`data/MNIST`, `data/ESC-50-master`, `data/sign-lang`, `data/hyena`, `data/gan`).
+(`data/MNIST`, `data/ESC-50-master`, `data/CUB_200_2011`, `data/Dataset`, `data/gan`).
 Do not commit downloaded corpora or trained weights; route new downloads through code
 in the notebook (or `download_data.py` if reintroduced) and gitignore the output.
 Notebooks are committed **with** their outputs — figures are part of the teaching
@@ -116,8 +117,14 @@ or dropped must be reflected there, and every link must resolve on the current b
 
 ## Planning documents
 
-Markdown plans at the repo root (`DL2026_PLAN.md`, `autoencoders-plan.md`,
-`density_plan.md`, `finetuning.md`) are the authoritative specs for in-progress
-restructuring, including per-session time budgets in academic hours and explicit
-out-of-scope lists. Read the relevant plan before restructuring a session notebook,
-and update it as work lands.
+`DL2026_PLAN.md` is the authoritative spec for the in-progress restructuring,
+including per-session time budgets in academic hours, a progress log, and an
+explicit out-of-scope list. `DL2026_GPU_HANDOFF.md` is the brief for the two
+GPU-bound notebooks. Read the relevant one before restructuring a session
+notebook, and update the plan as work lands.
+
+`autoencoders-plan.md` is an unexecuted review of `sessions/autoencoders.ipynb`
+proposing a substantial upgrade (latent-space visualization, bottleneck sweep,
+convolutional autoencoder) and noting a real indexing bug in it.
+`density_plan.md` has already been carried out — it is the review that turned the
+old `density-estimation.ipynb` into today's `sessions/flow.ipynb`.

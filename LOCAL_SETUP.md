@@ -108,12 +108,11 @@ pretrained ImageNet weights are downloaded on demand:
 python download_data.py --list     # what is available, how big, what is already here
 python download_data.py            # everything the Day 1-4 notebooks need
 python download_data.py cub esc50  # just these two
-python download_data.py --bonus    # also the 3.2 GB hyena archive for the Day 3 bonus
 ```
 
-Budget roughly 2 GB for the default set and another 3.2 GB if you want the bonus
-case study. Archives are deleted after extraction; pass `--keep-archives` to keep
-them. Re-running is cheap — anything already extracted is skipped.
+Budget roughly 2 GB. Archives are deleted after extraction; pass
+`--keep-archives` to keep them. Re-running is cheap — anything already extracted
+is skipped.
 
 ---
 

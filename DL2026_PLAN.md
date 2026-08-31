@@ -21,7 +21,7 @@ Branch `DL2026` is pushed to `origin` and tracks `origin/DL2026`.
 | 2 (§3) `sessions/transfer.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
 | 3 (§4) `sessions/audio.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
 | 3b (§4b) `sessions/flow.ipynb` | TODO | local | FlowJax conditional API verified, see below |
-| 4 (§5) `sessions/finetuning.ipynb` | **POSTPONED** | — | explicit decision, not this pass |
+| 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, commit pending | one pending link: `sessions/transfer.ipynb` (Phase 2) |
 | 9 (§9) Validation | PARTIAL only | local + remote | full GPU notebook runs depend on Phases 2/3 |
@@ -88,6 +88,32 @@ Validation run at this point (§9 items 3 and 4):
   `sessions/transfer.ipynb`, which is Phase 2's deliverable and will resolve when
   the GPU branch merges. **This is the one known-dead link on the branch.**
 
+### Cleanup pass, 2026-08-31
+
+Decided after Phase 6 and applied on top of it:
+
+- **`sessions/finetuning.ipynb` deleted** and Day 3's Bonus subsection removed
+  from the index. §5 is void; see that section. `download_data.py` lost the hyena
+  entry and, with it, the `--bonus` flag, which had no other members. The loader
+  pattern the notebook carried is preserved in `DL2026_GPU_HANDOFF.md` §2a so the
+  Phase 2 work does not lose it. 6.4 GB of hyena data (`data/hyena` plus the
+  `hyena.coco.tar.gz` tarball) is still on the local disk and can be deleted.
+- **`exercises/GAN.ipynb` removed from the §1 Day 4 homework list** — it never
+  existed (correction 9).
+- **Removed from the working tree:** the empty `finetuning_torch.ipynb`, and
+  `data/poker-hand-testing.data` / `data/poker-hand-training-true.data`, which
+  belong to nanochat (verified byte-identical to the copies there before
+  deleting).
+- **`autoencoders-plan.md` and `density_plan.md` reviewed.** `density_plan.md` has
+  already been executed — it is what turned the old `density-estimation.ipynb`
+  into today's `sessions/flow.ipynb`, and §4b here is the next step past it.
+  `autoencoders-plan.md` is **not** executed: it proposes a real upgrade to
+  `sessions/autoencoders.ipynb` (latent-space visualization, bottleneck sweep,
+  convolutional autoencoder, structured denoising) and flags a genuine bug —
+  `jax.random.choice(..., X_test.shape[1], ...)` should be `shape[0]`, so the
+  reconstruction preview samples from only the first 28 test images. **This is the
+  obvious candidate for the 2 unbudgeted academic hours on Day 4** (correction 10).
+
 ### Corrections to this plan, found while executing it
 
 1. **§4b logo claim is wrong.** `img/logo.png` is not unique to `flow.ipynb` —
@@ -131,10 +157,11 @@ Validation run at this point (§9 items 3 and 4):
    `palmerpenguins.load_penguins()`). This also explains why `palmerpenguins` is
    in `requirements.txt` while no notebook imports it: the CSV was pre-exported.
    `download_data.py` can now regenerate it.
-9. **§1 Day 4 homework lists `exercises/GAN.ipynb`, which does not exist** — not
+9. **§1 Day 4 homework listed `exercises/GAN.ipynb`, which does not exist** — not
    on `DL2026`, `master`, `DeepLearning`, `amat2025a/b`, `torch`, `kla2025` or
-   `probml`. Only `exercises/ACGAN.ipynb` exists, and the index lists that alone.
-   If a plain GAN exercise is wanted it has to be written from scratch.
+   `probml`. Only `exercises/ACGAN.ipynb` exists. **Resolved:** §1 and the index
+   now list ACGAN alone. If a plain GAN exercise is ever wanted it has to be
+   written from scratch.
 10. **§1 Day 4 hours do not add up.** The header says 6.5 AH but the sessions sum
     to 4.5 (autoencoders 2 + flow 1.5 + GAN 1). Days 1, 2 and 3 each sum to 6.5
     correctly. Day 4 therefore has 2 AH unaccounted for — either the budget is
@@ -215,8 +242,8 @@ Homework: generalize `feed_forward` / `back_propagation` to arbitrary depth;
 Homework: `exercises/CNN.ipynb`, `exercises/sign-lang.ipynb` Ex 2,
 `sessions/CNN_timeseries.ipynb`, `exercises/audio.ipynb`, `exercises/transfer_learning.ipynb`,
 
-`autoencoders`, `finetuning` and `transfer` all build models with `keras.Input` + `keras.Model` and none use
-`Sequential` so `functional_keras` is critical for these sessions.
+`autoencoders` and `transfer` both build models with `keras.Input` + `keras.Model` and neither uses
+`Sequential`, so `functional_keras` is critical for these sessions.
 
 ### Day 4 — Representations and densities (6.5)
 | Session | AH |
@@ -225,7 +252,7 @@ Homework: `exercises/CNN.ipynb`, `exercises/sign-lang.ipynb` Ex 2,
 | `sessions/flow.ipynb` | 1.5 |
 | `sessions/GAN.ipynb` | 1 |
 
-Homework: `exercises/GAN.ipynb`, `exercises/ACGAN.ipynb`
+Homework: `exercises/ACGAN.ipynb`
 
 Framing to preserve in the narrative: the autoencoder learns a representation with no density; the flow learns a density you can both evaluate and sample; the GAN learns to sample without ever writing down a density. 
 Do **not** label autoencoders as generative models.
@@ -254,8 +281,8 @@ Homework: `exercises/LSTM.ipynb`, `exercises/transformer_ts.ipynb` **(new)**
 ## 2. Phase 1 — Branch assembly  ✅ DONE (commit `313621a`)
 
 Base on `DeepLearning`. It is the newest deep-learning content (May 2026), it
-already contains `flow`, `finetuning`, `autoencoders`, `functional_keras`, and
-`transfer_learning`, and — conveniently — it already lacks every notebook that
+already contains `flow`, `autoencoders`, `functional_keras`, and
+`transfer_learning` (and `finetuning`, since deleted), and — conveniently — it already lacks every notebook that
 now belongs to nanochat.
 
 ```bash
@@ -300,7 +327,8 @@ large published baseline literature, and — unlike Flowers or Oxford Pets — d
 not saturate, so the probe-versus-fine-tune gap is actually visible.
 
 **Loading (important):** download and extract the tarball directly, then parse
-with PIL + NumPy, mirroring the loader already in `finetuning.ipynb`. Do **not**
+with PIL + NumPy, mirroring the loader reproduced in `DL2026_GPU_HANDOFF.md`
+§2a (originally from `finetuning.ipynb`, now deleted). Do **not**
 use `tensorflow_datasets` (drags in TensorFlow) or HF `datasets` unless it can be
 installed without a deep-learning framework. Cache the extracted arrays under
 `data/` and skip re-download if present.
@@ -471,7 +499,22 @@ Do **not** add a Palmer penguins example.
 
 ---
 
-## 5. Phase 4 — POSTPONED, DO NOT DO THIS NOW - Rework `sessions/finetuning.ipynb` as a bonus case study
+## 5. Phase 4 — ❌ VOID. `sessions/finetuning.ipynb` has been deleted
+
+**Decision, 2026-08-31: the hyena notebook is removed from the branch entirely**,
+not reworked and not kept as a bonus. The index link and the file are both gone,
+`download_data.py` no longer fetches the hyena archive, and Day 3 has no Bonus
+subsection. `sessions/transfer.ipynb` (Phase 2) is now the only transfer-learning
+material in the course.
+
+The notebook survives in git — `git show origin/DeepLearning:sessions/finetuning.ipynb`
+— if the metric-learning case study is ever revived. The rest of this section is
+kept only as a record of what was wrong with it.
+
+<details>
+<summary>Original Phase 4 plan (no longer to be executed)</summary>
+
+### Original: Rework `sessions/finetuning.ipynb` as a bonus case study
 
 The hyena notebook stops being the Day 3 session and becomes a Day 3 bonus /
 case study whose job is to motivate metric learning. Current recorded results:
@@ -507,6 +550,8 @@ val; +50 epochs fine-tuning → 54.0% val (loss 2.06); ~45 min total runtime.
 
 Do not implement metric learning. Do not implement the cosine-NN retrieval
 evaluation. Those are deferred.
+
+</details>
 
 ---
 
@@ -594,16 +639,17 @@ Match the existing house style exactly:
 3. Confirm no notebook imports `torch`, `tensorflow`, or `transformers`.
 4. Check every link in `index.ipynb` resolves to a file that exists on the
    branch.
-5. Report the measured accuracy numbers for `transfer.ipynb`, the restructured
-   `audio.ipynb`, and the fixed `finetuning.ipynb` — especially whether the
-   audio probe beats the from-scratch CNN, and how much the hyena number drops
-   once the split leak is fixed. Both may change what gets said in class.
+5. Report the measured accuracy numbers for `transfer.ipynb` and the restructured
+   `audio.ipynb` — especially whether the audio probe beats the from-scratch CNN.
+   This may change what gets said in class.
 
 ---
 
 ## 10. Out of scope
 
-- Metric learning (ArcFace, contrastive, cosine-NN retrieval) — planned, not now.
+- The hyena re-identification notebook, in any form — **deleted from the branch**
+  (see §5), along with the metric-learning follow-up it was meant to motivate.
+- Metric learning (ArcFace, contrastive, cosine-NN retrieval).
 - Any PyTorch migration. The `torch` branch stays where it is.
 - `sessions/augmentation.ipynb` on the `torch` branch is a 2-cell stub; ignore it.
 - KerasHub / Whisper audio embeddings — a possible future bonus, not this pass.

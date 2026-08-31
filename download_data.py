@@ -5,7 +5,6 @@ Keras 3 on the JAX backend. Run from the repository root:
     python download_data.py                 # everything the Day 1-4 sessions and homework need
     python download_data.py --list          # what is available, how big, and what is already here
     python download_data.py cub esc50       # just these
-    python download_data.py --bonus         # also the large hyena archive (3.2 GB)
 
 Downloads are resumable-by-skipping: an archive that is already present is not
 fetched again, and an archive that is already extracted is not extracted again.
@@ -54,14 +53,6 @@ ARCHIVES = {
         size="~4 MB",
         why="exercises/audio.ipynb (Day 3 homework)",
     ),
-    "hyena": dict(
-        url="http://us-west-2.opendata.source.coop.s3.amazonaws.com/agentmorris/lila-wildlife/wild-me/hyena.coco.tar.gz",
-        archive="hyena.coco.tar.gz",
-        target="hyena",
-        size="3.2 GB download",
-        why="sessions/finetuning.ipynb (Day 3 bonus case study)",
-        bonus=True,
-    ),
 }
 
 # Everything else: Keras datasets, pretrained weights, and a generated CSV.
@@ -89,8 +80,8 @@ def _resnet50():
 def _efficientnetv2s():
     import keras
 
-    # transfer.ipynb and finetuning.ipynb both use the backbone without the
-    # classifier head, which is a separate weights file from the full model.
+    # transfer.ipynb uses the backbone without the classifier head, which is a
+    # separate weights file from the full model.
     keras.applications.EfficientNetV2S(
         weights="imagenet", include_top=False, pooling="avg"
     )
@@ -187,10 +178,7 @@ def do_list():
         target = os.path.join(DATA, spec["target"])
         present = os.path.isdir(target) and bool(os.listdir(target))
         tag = "yes" if present else "no"
-        bonus = " [--bonus only]" if spec.get("bonus") else ""
-        print(
-            f"{name:16s} {tag:8s} {spec.get('size', 'size not reported by host')}{bonus}"
-        )
+        print(f"{name:16s} {tag:8s} {spec.get('size', 'size not reported by host')}")
         print(f"{'':25s} {spec['why']}")
     for name, (_, desc) in KERAS_ITEMS.items():
         print(f"{name:16s} {'-':8s} {desc}")
@@ -201,14 +189,11 @@ def do_list():
 def main():
     p = argparse.ArgumentParser(
         description="Download course datasets and pretrained weights.",
-        epilog="With no arguments, fetches everything except the --bonus items.",
+        epilog="With no arguments, fetches everything the Day 1-4 notebooks need.",
     )
     p.add_argument("names", nargs="*", help="specific items to fetch (see --list)")
     p.add_argument(
         "--list", action="store_true", help="show what is available and exit"
-    )
-    p.add_argument(
-        "--bonus", action="store_true", help="also fetch the large bonus archives"
     )
     p.add_argument(
         "--keep-archives",
@@ -230,11 +215,7 @@ def main():
             p.error(f"unknown item(s): {', '.join(sorted(unknown))}. Try --list.")
         selected = list(args.names)
     else:
-        selected = [n for n, s in ARCHIVES.items() if not s.get("bonus")] + list(
-            KERAS_ITEMS
-        )
-        if args.bonus:
-            selected += [n for n, s in ARCHIVES.items() if s.get("bonus")]
+        selected = list(ARCHIVES) + list(KERAS_ITEMS)
 
     import keras
 

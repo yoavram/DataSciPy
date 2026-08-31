@@ -62,9 +62,8 @@ backend `jax`, devices CPU.
    here; a `tensorflow_datasets` import silently drags TensorFlow into a
    student's environment and breaks the JAX backend story.
 2. Datasets are downloaded and parsed by hand: `urllib` → `tarfile`/`zipfile` →
-   PIL/NumPy. **`sessions/finetuning.ipynb` contains the reference loader — copy
-   its shape.** Cache the parsed arrays under `data/` and skip re-download when
-   the cache is present.
+   PIL/NumPy. Cache the parsed arrays under `data/` and skip re-download when the
+   cache is present. The reference loader is in §2a below.
 3. Do not commit datasets or weights. `.gitignore` already covers `*.keras`,
    `*.h5`, `*.npz`, `*.npy`, `*.zip`, `*.tar.gz`, `*.wav`. Add a `.gitignore`
    entry for any new download directory you create under `data/`.
@@ -77,11 +76,80 @@ backend `jax`, devices CPU.
 6. Use *validation* terminology, not *test* — `X_validation`, `val_accuracy`.
    This was a deliberate sweep across the Keras notebooks.
 
+## 2a. The reference loader
+
+`sessions/finetuning.ipynb` used to hold the house loader for an image dataset
+that arrives as a tarball. That notebook has been **removed from this branch**, so
+the pattern is reproduced here. (If you want the original in full, it is still in
+git: `git show origin/DeepLearning:sessions/finetuning.ipynb`.)
+
+Download and extract, skipping work that is already done:
+
+```python
+from pathlib import Path
+import tarfile, urllib.request
+
+DATA_DIR = Path('../data')
+ARCHIVE = DATA_DIR / 'CUB_200_2011.tgz'
+DATASET_DIR = DATA_DIR / 'CUB_200_2011'
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+if not DATASET_DIR.exists():
+    if not ARCHIVE.exists():
+        print(f'Downloading {url}')
+        urllib.request.urlretrieve(url, ARCHIVE)
+    print('Extracting archive...')
+    with tarfile.open(ARCHIVE, 'r:gz') as archive:
+        archive.extractall(path=DATA_DIR, filter='data')
+else:
+    print('Dataset already available at', DATASET_DIR)
+```
+
+Note `filter='data'` on `extractall` — it refuses absolute paths and paths that
+escape the destination. The original notebook predates that argument; use it.
+
+Parse to a NumPy array with PIL, preallocating the output:
+
+```python
+from PIL import Image
+import numpy as np
+
+IMG_SIZE = 224
+images = np.empty((len(paths), IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8)
+for i, path in enumerate(paths):
+    with Image.open(path) as image:
+        image = image.convert('RGB').resize((IMG_SIZE, IMG_SIZE))
+    images[i] = np.asarray(image, dtype=np.uint8)
+
+targets = keras.utils.to_categorical(labels, n_classes).astype('float32')
+```
+
+Cache `images` and `targets` to `data/` as `.npy` or `.npz` so a kernel restart
+does not re-decode 12,000 JPEGs. `.gitignore` already covers both extensions.
+
+Also copy the `plot_history` helper the other Keras notebooks use — two panels,
+accuracy and loss, train and validation on each:
+
+```python
+def plot_history(history):
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3), sharex=True)
+    axes[0].plot(history['accuracy'], label='train')
+    axes[0].plot(history['val_accuracy'], label='validation')
+    axes[0].legend()
+    axes[1].plot(history['loss'], label='train')
+    axes[1].plot(history['val_loss'], label='validation')
+    axes[1].legend()
+    fig.tight_layout()
+```
+
 ## 3. Phase 2 — new `sessions/transfer.ipynb`
 
 Day 3's in-class transfer-learning session, 2 academic hours (≈100 min) of class
-time. It replaces `sessions/finetuning.ipynb` (hyena re-ID) in the teaching slot,
+time. It replaces the old hyena re-identification notebook in the teaching slot,
 because 256 open-set identities with ~12 images each is the wrong first example.
+That notebook has been removed from the branch entirely, so `transfer.ipynb` is
+now the *only* transfer-learning session — there is no fallback if it does not
+land.
 
 **Dataset: CUB-200-2011.** 11,788 images, 200 bird species, official split
 5,994 train / 5,794 validation. Chosen over Flowers/Oxford-Pets because it does
@@ -199,13 +267,14 @@ Specifically, do **not** edit:
 - `LOCAL_SETUP.md`, `.gitignore` — done in Phase 6. Note that `.gitignore` now
   covers `data/CUB_200_2011`, `data/ESC-50-master`, `*.keras`, `*.h5` and
   `*.tgz`, so your downloads and checkpoints stay untracked automatically.
-- `sessions/flow.ipynb`, `sessions/finetuning.ipynb`, `DL2026_PLAN.md`,
-  `CLAUDE.md`, anything under `exercises/` or `solutions/`.
+- `sessions/flow.ipynb`, `DL2026_PLAN.md`, `CLAUDE.md`, anything under
+  `exercises/` or `solutions/`.
 
-`sessions/finetuning.ipynb` has known defects (a train/validation split that
-leaks by `image_id`, among others) — they are documented in `DL2026_PLAN.md` §5
-and explicitly **out of scope**. Do not fix them, and do not copy its splitting
-logic; copy only its download/parse loader.
+One warning inherited from the notebook that used to live here: it split
+`train_test_split` over *annotation* indices rather than *image* ids, so crops
+from one photograph landed on both sides of the split and the reported accuracy
+was optimistic. CUB has an official `train_test_split.txt` — use it, and do not
+invent a random split.
 
 ## 6. Deliverables
 
