@@ -30,7 +30,7 @@ Read the status table as the index of what to do.
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | one pending link: `sessions/transfer.ipynb` (Phase 2) |
 | 7 (§4b) `sessions/flow.ipynb` | **TODO** | local? see §4b | was "Phase 3b"; **respecified 2026-08-31** as UCI POWER density estimation, not conditional AnAge |
-| 8 (§12) `sessions/autoencoders.ipynb` | **TODO** | local | small; finishes off `autoencoders-plan.md` |
+| 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
 | 9 (§9) Validation | PARTIAL only | local + remote | full GPU notebook runs depend on Phases 2/3 |
 
 ### Phase 1 — what actually happened
@@ -777,7 +777,7 @@ Match the existing house style exactly:
 
 ---
 
-## 12. Phase 8 — Finish `sessions/autoencoders.ipynb`  ⬜ TODO (local)
+## 12. Phase 8 — Finish `sessions/autoencoders.ipynb`  ✅ DONE
 
 Closes out `autoencoders-plan.md`. **This is a small stage** — most of that
 document has already been carried out (correction 16). Verified present in the
@@ -828,3 +828,79 @@ decision.
 
 After this lands, `autoencoders-plan.md` and `density_plan.md` are both fully
 spent and can be deleted.
+
+### Phase 8 — what actually happened
+
+Both planned items landed, and the second one was **respecified by decision** into
+something considerably better than "one extension".
+
+**1. Reconstruction diagnostics** (new section after the dense-vs-conv figure).
+Per-image MSE over the 10,000 validation images with a histogram, an
+easiest-versus-hardest grid of 5+5 images labelled with their own MSE, and mean
+error per digit class. Measured: mean 0.0033, median 0.0028, worst single image
+0.0351 = **12.5x the median**; easiest digit `1` at 0.0011, hardest digit `8` at
+0.0049, a **4.4x** spread. The mean sitting above the median makes the
+"averages hide the distribution" point on real numbers.
+
+**2. Label-efficiency sweep, not a linear probe.** The original spec was a linear
+probe on the latents versus raw pixels. That was replaced with the question that
+actually matters: does unsupervised pretraining pay off when labels are scarce?
+Three models at five label budgets:
+
+| labeled images | end-to-end CNN | AE + MLP head | AE + linear head |
+|---|---|---|---|
+| 100 | 0.7659 | **0.8105** | 0.7530 |
+| 250 | 0.8353 | **0.8743** | 0.8458 |
+| 1,000 | 0.8979 | **0.9300** | 0.8930 |
+| 2,000 | 0.9411 | **0.9487** | 0.8957 |
+| 60,000 | **0.9856** | 0.9837 | 0.9321 |
+
+With all labels, end-to-end supervision wins (by 0.2 points, i.e. a tie, and our
+CNN is small and trained for 10 epochs). As labels get scarcer the ordering flips
+and the margin grows monotonically: +0.8, +3.2, +3.9, **+4.5** points. Crossover
+between 2,000 and 60,000.
+
+**A methodological trap worth recording**, because the first attempt fell into it.
+A linear head on 100 labels initially scored **0.1547** — near chance — and it would
+have been easy to write that up as a fact about representations. It was not. Two
+causes: `batch_size=min(128, n)` meant 100 labels x 60 epochs was only **60
+gradient updates**, and the encoder's final layer is `activation="linear"` and
+unconstrained so the latents are off-scale (measured mean |z| 2.11, max 15.16). The
+notebook now standardizes the latents with training-set statistics and equalizes
+*gradient updates* rather than epochs, and says why in the narrative. Anyone
+touching this section should keep both guards.
+
+Also worth carrying forward: the linear head caps at 0.9321 with all 60,000 labels
+while an MLP head on the *same frozen features* reaches 0.9837. A linear probe is a
+comparable **lower bound** on representation quality, not a measurement of it —
+which is the right way to read Day 3's `transfer.ipynb` probe numbers too.
+
+**Housekeeping done in the same pass:**
+
+- `SEED = 23` with `keras.utils.set_random_seed`, replacing a commented-out config
+  stub. The notebook previously had unseeded `np.random.choice` throughout, so the
+  "hardest images" figure would have changed on every run.
+- The 2D latent scatter plotted all 10,000 validation points and was **2.74 MB on
+  its own**, the largest single object in the notebook. Now a seeded 3,000-point
+  subsample, with the count in the title. Colormap changed `Set1` -> `tab10`:
+  `Set1` has only 9 colors for 10 digit classes, in the one figure where color *is*
+  the data.
+- `conv_history` was fitted with `verbose=1`, producing **1.06 MB** of ANSI
+  progress-bar spam. Now `verbose=2`, matching the denoising cell.
+- Net effect: the notebook is **3.0 MB, down from 4.2 MB**, despite 10 new cells.
+- The `Y_train` housekeeping item is void — the sweep uses `Y_train`, and `ncats`,
+  both of which were previously dead.
+- Exercises reworked from 5 to 8, dropping the one the diagnostics section made
+  redundant and adding the crossover hunt and the Fashion-MNIST repeat.
+- References gained Erhan et al. 2010 (the classic study of exactly this
+  experiment) and SimCLR (the modern version, with label-efficiency curves).
+
+**Validation.** Runs top to bottom from a clean kernel via `nbconvert --execute`,
+zero cell errors, **25 minutes wall-clock on CPU**. That discharges §9 item 2 for
+this notebook. Note the runtime for classroom purposes: the conv autoencoder is
+~50 s/epoch x 15 and the denoising model ~50 s/epoch x 10 on CPU, so this notebook
+cannot be trained live in class — the session budget assumes the stored outputs are
+used, and unlike the Keras sessions there is **no `load_model` checkpoint path in
+this notebook**. Adding one would be a sensible follow-up.
+
+`autoencoders-plan.md` is now fully spent and can be deleted.
