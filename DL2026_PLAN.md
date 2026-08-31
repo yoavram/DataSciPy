@@ -13,6 +13,8 @@ phase ends at a committable state.
 
 Maintained as work lands. Last updated 2026-08-31.
 
+Branch `DL2026` is pushed to `origin` and tracks `origin/DL2026`.
+
 | Phase | Status | Where | Notes |
 |---|---|---|---|
 | 1 (§2) Branch assembly | **DONE** | local, commit `313621a` | branch `DL2026` created off `origin/DeepLearning` |
@@ -20,8 +22,8 @@ Maintained as work lands. Last updated 2026-08-31.
 | 3 (§4) `sessions/audio.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
 | 3b (§4b) `sessions/flow.ipynb` | TODO | local | FlowJax conditional API verified, see below |
 | 4 (§5) `sessions/finetuning.ipynb` | **POSTPONED** | — | explicit decision, not this pass |
-| 5 (§6) nanochat `transformer_ts` | TODO | local | source notebook stashed out of `origin/master` |
-| 6 (§7) index / env / data | TODO | local | |
+| 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
+| 6 (§7) index / env / data | **DONE** | local, commit pending | one pending link: `sessions/transfer.ipynb` (Phase 2) |
 | 9 (§9) Validation | PARTIAL only | local + remote | full GPU notebook runs depend on Phases 2/3 |
 
 ### Phase 1 — what actually happened
@@ -41,6 +43,50 @@ Executed as specified. `DeepLearning` was in sync with `origin/DeepLearning` at
 `sessions/audio.ipynb` is 34 MB (embedded audio and figure outputs). The blob
 already exists in `master`'s history, so this costs nothing new, but it is worth
 knowing before restructuring it.
+
+### Phase 6 — what actually happened
+
+Done locally, no GPU needed. Deliverables:
+
+- **`index.ipynb` rewritten.** Title is now *Introduction to Deep Learning*; logo,
+  author block and contact lines kept. Four days, each split into explicit
+  **Sessions** / **Bonus** / **Homework** subsections so in-class time reads as
+  sessions only. New **Setup** section pointing at `README.md` and
+  `LOCAL_SETUP.md` plus the `download_data.py` invocation. New **Part II**
+  section linking `https://github.com/yoavram/nanochat` with the Day 5–6 topics
+  listed but not linked per-notebook (they live in that repo's own index). The
+  dead `sessions/density-estimation.ipynb` link is gone; `sessions/flow.ipynb`
+  now carries density estimation. Jupyter help / Terminal / GPU / CPU cells kept
+  verbatim. 11 cells, validates under `nbformat`.
+- **`requirements.txt` completed**: added `librosa`, `corner`, `pillow`,
+  `ipywidgets` ordering tidied, and `keras` pinned to `keras>=3`. Verified free of
+  `torch` / `tensorflow` / `transformers` / `tensorflow_datasets`.
+- **`download_data.py` rewritten for Keras 3.** `import keras` with
+  `KERAS_BACKEND` defaulted to `jax`; `urllib.request` instead of `requests` with
+  `verify=False` (no new dependency, and TLS verification is no longer disabled);
+  `tarfile.extractall(..., filter="data")`. Fetches MNIST, Fashion-MNIST,
+  ResNet50 and EfficientNetV2S (no-top) weights, ESC-50, CUB-200-2011,
+  SpeechEmotion, Sign-Language, and regenerates `data/penguins.csv`. The 3.2 GB
+  hyena archive is `--bonus`-only. Has `--list`, named-item selection, skip-if-
+  present, and `--keep-archives`. Smoke-tested: `--list`, `--help`, unknown-name
+  rejection, the Keras-cache items, and one real download-and-extract cycle.
+- **`LOCAL_SETUP.md` added**: Miniforge + conda/mamba route, why to install these
+  packages with `pip` rather than `mamba`, kernel registration, backend check,
+  GPU/`jax[cuda12]` notes, data download, and maintainer notes.
+- **`.gitignore` reorganized**: added `*.pt` (see correction 3), `*.hd5`, `*.pkl`,
+  `*.tgz`, `__pycache__/`, `.venv/`, and the new dataset directories
+  (`data/CUB_200_2011`, `data/Dataset`, `data/FashionMNIST`,
+  `data/SpeechEmotion-master`, `data/acgan`). Verified no tracked file became
+  ignored.
+- **`data/penguins.csv` restored** from `origin/master` (see correction 8).
+
+Validation run at this point (§9 items 3 and 4):
+
+- No notebook imports `torch`, `tensorflow`, `transformers`, or
+  `tensorflow_datasets`. Clean.
+- `index.ipynb`: 41 of 42 local links resolve. The single break is
+  `sessions/transfer.ipynb`, which is Phase 2's deliverable and will resolve when
+  the GPU branch merges. **This is the one known-dead link on the branch.**
 
 ### Corrections to this plan, found while executing it
 
@@ -76,6 +122,39 @@ knowing before restructuring it.
 7. **Local environment is CPU-only** (keras 3.14.0, jax 0.9.2, backend `jax`,
    `jax.default_backend() == 'cpu'`), which is why Phases 2 and 3 were split out
    to a remote GPU machine.
+
+8. **`data/penguins.csv` was missing and a Day 1 session depended on it.**
+   `sessions/gamma_regression.ipynb`, imported from `master` in Phase 1, does
+   `pd.read_csv('../data/penguins.csv')`. That file is committed on `master` and
+   `amat2025b` but was absent from `DeepLearning`, so the session would have
+   failed in class. Restored from `origin/master` (15 KB, 344 rows — exactly
+   `palmerpenguins.load_penguins()`). This also explains why `palmerpenguins` is
+   in `requirements.txt` while no notebook imports it: the CSV was pre-exported.
+   `download_data.py` can now regenerate it.
+9. **§1 Day 4 homework lists `exercises/GAN.ipynb`, which does not exist** — not
+   on `DL2026`, `master`, `DeepLearning`, `amat2025a/b`, `torch`, `kla2025` or
+   `probml`. Only `exercises/ACGAN.ipynb` exists, and the index lists that alone.
+   If a plain GAN exercise is wanted it has to be written from scratch.
+10. **§1 Day 4 hours do not add up.** The header says 6.5 AH but the sessions sum
+    to 4.5 (autoencoders 2 + flow 1.5 + GAN 1). Days 1, 2 and 3 each sum to 6.5
+    correctly. Day 4 therefore has 2 AH unaccounted for — either the budget is
+    wrong or the day needs more material. **Needs a decision.**
+11. **§7's dataset list for `download_data.py` is incomplete.** Auditing every
+    `../data/` reference in the notebooks turns up two more downloads the course
+    needs: SpeechEmotion (`exercises/audio.ipynb`) and the Sign-Language
+    `Dataset.zip` (`exercises/sign-lang.ipynb`). Both are now handled.
+12. **The CUB-200-2011 URL answers `403` to `HEAD`.** The Caltech DATA link
+    (`https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz?download=1`)
+    redirects to presigned OSN storage whose signature covers `GET` only, so a
+    `HEAD` probe looks broken when the URL is fine. A ranged `GET` returns `206`
+    and reports a total of 1,150,585,339 bytes (1.07 GiB). Verified working.
+13. **The hyena archive is 3.2 GB** (3,441,352,255 bytes), larger than the plan
+    implies for a bonus notebook. It is `--bonus`-only in `download_data.py`.
+14. **`requirements.txt` was missing `pillow` too** — `sessions/finetuning.ipynb`
+    imports `PIL`, which currently only arrives as a transitive `matplotlib`
+    dependency. `optax` and `palmerpenguins` are imported by no notebook
+    (`optax` is a FlowJax dependency, `palmerpenguins` regenerates the CSV); both
+    kept, as §7 asks.
 
 ---
 
@@ -431,7 +510,7 @@ evaluation. Those are deferred.
 
 ---
 
-## 6. Phase 5 — nanochat changes  ⬜ TODO (local, independent of Phases 2–3)
+## 6. Phase 5 — nanochat changes  ⏸️ POSTPONED (independent of Phases 2–3; do later)
 
 1. **New `exercises/transformer_ts.ipynb` + `solutions/transformer_ts.ipynb`.**
    Port `sessions/transformer_ts.ipynb` from `DataSciPy@master` (Keras, FordA
@@ -444,7 +523,7 @@ evaluation. Those are deferred.
 
 ---
 
-## 7. Phase 6 — Index, environment, and data  ⬜ TODO (local)
+## 7. Phase 6 — Index, environment, and data  ✅ DONE
 
 ### `index.ipynb` (DataSciPy `DL2026`)
 Rewrite to the agenda in §1. Requirements:

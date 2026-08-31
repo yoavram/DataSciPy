@@ -33,8 +33,12 @@ Environment (Python 3.12 or 3.13):
 
 ```bash
 python -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pip install librosa      # needed by audio.ipynb, being added to requirements.txt locally
+.venv/bin/python download_data.py --list          # what is available
+.venv/bin/python download_data.py cub esc50       # ~1.9 GB, the two datasets you need
 ```
+
+`requirements.txt` was completed in Phase 6 and already includes `librosa`, so you
+should not need to install anything beyond the CUDA `jax`.
 
 Confirm the backend and that the GPU is actually visible — do this before
 anything else, and paste the output into your final report:
@@ -80,11 +84,16 @@ time. It replaces `sessions/finetuning.ipynb` (hyena re-ID) in the teaching slot
 because 256 open-set identities with ~12 images each is the wrong first example.
 
 **Dataset: CUB-200-2011.** 11,788 images, 200 bird species, official split
-5,994 train / 5,794 validation. `https://data.caltech.edu/records/65de6-vp158`
-(the `CUB_200_2011.tgz` tarball; check the URL still resolves and note in the
-notebook what you used). Chosen over Flowers/Oxford-Pets because it does *not*
-saturate, so the probe-versus-fine-tune gap is visible. Use the official split
-from `train_test_split.txt`, not a random one.
+5,994 train / 5,794 validation. Chosen over Flowers/Oxford-Pets because it does
+*not* saturate, so the probe-versus-fine-tune gap is visible. Use the official
+split from `train_test_split.txt`, not a random one.
+
+`download_data.py` on this branch already fetches it — `python download_data.py cub`
+puts it in `data/CUB_200_2011`. If you fetch it yourself, the URL is
+`https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz?download=1`
+(1.07 GiB, verified). **Gotcha:** that link redirects to presigned storage whose
+signature covers `GET` only, so a `HEAD` probe returns `403` even though the URL
+works. Do not conclude it is dead — check with a ranged `GET` instead.
 
 **Structure:**
 
@@ -178,12 +187,18 @@ Work in parallel locally covers the rest of the plan. To keep the merge clean,
 
 Specifically, do **not** edit:
 
-- `index.ipynb` — rewritten locally (Phase 6). It will link your two notebooks;
-  you do not need to add the links.
-- `requirements.txt` — completed locally. Report anything you needed instead.
-- `download_data.py` — being written locally to fetch CUB and ESC-50. If you
-  write download code inside your notebooks (you should), tell us the URLs and
-  cache paths you used so they can be lifted into it.
+- `index.ipynb` — **already rewritten** (Phase 6). It links your two notebooks
+  under Day 3, so `sessions/transfer.ipynb` is currently the one dead link on the
+  branch; it resolves the moment your work merges. Do not edit the index.
+- `requirements.txt` — **already complete**. If you needed something extra,
+  report it rather than editing the file.
+- `download_data.py` — **already written**, and it fetches both CUB and ESC-50.
+  Use it. If your notebooks do their own downloading (fine, and closer to the
+  teaching style), still tell us the URLs and cache paths you used so the two
+  stay consistent.
+- `LOCAL_SETUP.md`, `.gitignore` — done in Phase 6. Note that `.gitignore` now
+  covers `data/CUB_200_2011`, `data/ESC-50-master`, `*.keras`, `*.h5` and
+  `*.tgz`, so your downloads and checkpoints stay untracked automatically.
 - `sessions/flow.ipynb`, `sessions/finetuning.ipynb`, `DL2026_PLAN.md`,
   `CLAUDE.md`, anything under `exercises/` or `solutions/`.
 
