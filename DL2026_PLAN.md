@@ -11,7 +11,7 @@ phase ends at a committable state.
 
 ## 0a. Progress log
 
-Maintained as work lands. Last updated 2026-08-31.
+Maintained as work lands. Last updated 2026-09-01.
 
 Branch `DL2026` is pushed to `origin` and tracks `origin/DL2026`.
 
@@ -24,11 +24,11 @@ Read the status table as the index of what to do.
 | Phase | Status | Where | Notes |
 |---|---|---|---|
 | 1 (§2) Branch assembly | **DONE** | local, `313621a` | branch `DL2026` created off `origin/DeepLearning` |
-| 2 (§3) `sessions/transfer.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
-| 3 (§4) `sessions/audio.ipynb` | **DELEGATED** | remote GPU agent | see `DL2026_GPU_HANDOFF.md` |
+| 2 (§3) `sessions/transfer.ipynb` | **DONE** | GPU box, `DL2026-gpu` `20da46a`+`1ae6a4d` | probe 67.4-67.9%, fine-tune 76.6-76.8% top-1; see below |
+| 3 (§4) `sessions/audio.ipynb` | **IN PROGRESS** | GPU box, `DL2026-gpu` | not started; four pre-existing defects surveyed, see below |
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
-| 6 (§7) index / env / data | **DONE** | local, `e568f74` | one pending link: `sessions/transfer.ipynb` (Phase 2) |
+| 6 (§7) index / env / data | **DONE** | local, `e568f74` | the `sessions/transfer.ipynb` link now resolves |
 | 7 (§4b) `sessions/flow.ipynb` | **DELEGATED** | remote GPU agent | respecified as UCI POWER, then moved to `DL2026_GPU_HANDOFF.md` §4b |
 | 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
 | 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; full GPU runs depend on Phases 2, 3 and 7 |
@@ -93,7 +93,8 @@ Validation run at this point (§9 items 3 and 4):
   `tensorflow_datasets`. Clean.
 - `index.ipynb`: 41 of 42 local links resolve. The single break is
   `sessions/transfer.ipynb`, which is Phase 2's deliverable and will resolve when
-  the GPU branch merges. **This is the one known-dead link on the branch.**
+  the GPU branch merges. ~~**This is the one known-dead link on the branch.**~~
+  **Resolved 2026-09-01:** `sessions/transfer.ipynb` exists on `DL2026-gpu`.
 
 ### Cleanup pass, 2026-08-31
 
@@ -130,6 +131,95 @@ Decided after Phase 6 and applied on top of it:
   of material, so **it does not on its own close Day 4's 2 AH gap** (correction
   10). Both `autoencoders-plan.md` and `density_plan.md` can be archived or
   deleted; only these leftovers are worth carrying forward.
+
+### Phase 2 — what actually happened (2026-09-01, GPU box)
+
+Done on branch `DL2026-gpu` off `DL2026`, commits `20da46a` (the notebook) and
+`1ae6a4d` (a correction to its discussion). Executed end to end from a clean
+kernel in 8m30s and committed with outputs; 44 cells, 4 figures, 1.8 MB.
+
+**Measured, official 5,994/5,794 split, seeds 23 and 24:**
+
+| protocol | top-1 | top-5 |
+|---|---|---|
+| linear probe | 67.36-67.88% | 90.94-91.03% |
+| fine-tune | 76.58-76.80% | 92.79-92.82% |
+
+The +8.7 to +9.4 point gain sits at the top of §3's predicted 2-10% range, and
+the seed spread is ~0.5 points, so the gap is unambiguous. Probe trains in 9s on
+cached 1280-d embeddings, so it runs live in class as §3 wanted; the fine-tune is
+~18s/epoch on an RTX A4000, ~3 min per seed, with a checkpoint and `load_model`
+path. Built as LP-FT: head copied from the trained probe, only `block6*`/`top_*`
+unfrozen, batch-norm frozen, one epoch of warmup into cosine decay at peak 1e-4,
+label smoothing 0.1.
+
+**§3's discussion checklist is covered**, including the 59-overlapping-ImageNet-
+bird-classes caveat and the Kumar et al. LP-FT argument. Two claims in it were
+measured rather than quoted, and one of those overturned an assumption:
+
+- A horizontal flip is worth **+0.4 points** (76.96% vs 76.56%), so augmentation
+  is not where the missing accuracy lives. Left out of the notebook; it is an
+  exercise.
+- **Unfreeze depth saturates.** `top_*` alone 68.62%, `block6*`+`top_*` 76.80%,
+  `block5*` onward 78.60%, `block4*` onward 78.84%, everything 79.60%. So a full
+  unfreeze buys 2.8 points over the notebook's choice and still lands ~5 points
+  short of the published ~85%. The first draft of the discussion asserted the gap
+  was "mostly about unfreezing more of the backbone"; that was wrong and is fixed
+  in `1ae6a4d`. The notebook now carries this table and names resolution
+  (224 vs 384), schedule length and augmentation recipe as *unmeasured*
+  candidates, explicitly labelled as such.
+
+Worth keeping: unfreezing `top_*` alone barely beats the frozen probe (68.62% vs
+67.36%). The final 1x1 convolution contributes almost nothing on its own.
+
+**Environment on the GPU box** — three deviations from `DL2026_GPU_HANDOFF.md` §1:
+
+- There was no `.venv`; system Python is 3.10/3.11, so one was built with `uv`
+  at 3.12.13, then `requirements.txt` + `jax[cuda12]`. `requirements.txt` not edited.
+- **`~/.keras/keras.json` was set to `"backend": "tensorflow"`**, not `jax` as
+  `CLAUDE.md` claims. Keras would not import at all (no TensorFlow installed).
+  Flipped to `jax`; old file kept at `~/.keras/keras.json.bak-tensorflow`.
+- Versions run ahead of the handoff's reference: keras 3.15.1, jax 0.11.1,
+  backend `jax`, `gpu`, `[CudaDevice(id=0), CudaDevice(id=1)]` (2x RTX A4000
+  16 GB). No code changes were needed for either bump.
+
+**Open items from this phase:**
+
+1. **`data/attributes.txt` is untracked and not gitignored.** The CUB tarball
+   carries it at its root *next to* `CUB_200_2011/`, so extraction drops it into
+   `data/`. Nothing in the repo uses CUB attribute data. Deleted from the working
+   tree, but a fresh clone recreates it. The durable fix is one line in
+   `download_data.py`, using machinery already there — add
+   `keep=("CUB_200_2011",)` to the `cub` entry. Not applied: the handoff's §5
+   permits editing only the `maf-benchmarks` `keep` tuple. **Needs a decision.**
+2. **Disk on the GPU box is at 97%, 27 GB free.** The CUB image cache alone is
+   1.8 GB and the MAF download for Phase 7 is another 857 MB.
+3. Checkpoints are gitignored and live at `~/Work/Teaching/DataSciPy/data/` on the
+   GPU box: `cub_effnetv2s_probe.keras` (3.1 MB),
+   `cub_effnetv2s_finetune.keras` (205 MB), plus both `_history.p` files.
+
+### Phase 3 — survey before starting (2026-09-01)
+
+Not started. Reading `sessions/audio.ipynb` as it stands turned up four defects
+that predate the restructure and that §4 does not mention. The first one changes
+what the from-scratch baseline number means:
+
+1. **The train/validation split leaks.** `model.fit(..., validation_split=0.1)`
+   splits over *segments*, but segments are ~1s overlapping windows cut from the
+   same 5s clip, so windows of one recording land on both sides. The reported
+   ~55% is optimistic. ESC-50 ships 5 official folds; the restructure should split
+   on `fold` and say which it used. This is the same defect the handoff's §5
+   warns about for the deleted hyena notebook.
+2. **The history plot is already broken on Keras 3.** It reads `history['acc']`
+   and `history['val_acc']`; these have been `accuracy`/`val_accuracy` since
+   Keras 2.3, so the cell raises `KeyError` as committed.
+3. Saves to `../data/keras_esc50_model.h5` — legacy format; the branch idiom is
+   `.keras`.
+4. Uses *test* terminology throughout, against the branch-wide sweep to
+   *validation*.
+
+None of this changes §4's spec, but fixing (1) will move the from-scratch
+baseline, which is the number the probe gets compared against.
 
 ### Corrections to this plan, found while executing it
 
