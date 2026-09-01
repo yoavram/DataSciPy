@@ -207,12 +207,24 @@ Worth keeping: unfreezing `top_*` alone barely beats the frozen probe (68.62% vs
    GPU box: `cub_effnetv2s_probe.keras` (3.1 MB),
    `cub_effnetv2s_finetune.keras` (196 MB), plus both `_history.p` files.
 
-### Phase 3 — survey before starting (2026-09-01)
+### Phase 3 — survey before starting (2026-09-01, revised after Phase 7)
 
 Not started. Reading `sessions/audio.ipynb` as it stands turned up four defects
-that predate the restructure and that §4 does not mention. The first one changes
-what the from-scratch baseline number means:
+that predate the restructure and that §4 does not mention; **executing** its
+data-prep path afterwards turned up a fifth, which is fatal, and a sixth. The
+full verified survey — with measured prep costs, segment counts and memory —
+is in `DL2026_GPU_HANDOFF.md` §4 under "Verified on the GPU box"; the short
+version is in `NEXT_SESSION.md`.
 
+0. **Fatal: the notebook does not run under `librosa` 1.0.0.** `load_wave`
+   returns `scipy.io.wavfile.read`'s **int16** array and librosa 1.0 raises
+   `ParameterError: Audio data must be floating-point`, so nothing below cell 13
+   has ever executed in this environment. Verified fix:
+   `wave.astype(np.float32) / 32768.0`. Numbered 0 to keep the original four
+   stable, since the handoff cites them.
+0b. **`librosa.amplitude_to_db` is applied to a power spectrogram**
+   (`melspectrogram` returns power), so every dB value is halved. Should be
+   `power_to_db`.
 1. **The train/validation split leaks.** `model.fit(..., validation_split=0.1)`
    splits over *segments*, but segments are ~1s overlapping windows cut from the
    same 5s clip, so windows of one recording land on both sides. The reported
@@ -228,7 +240,9 @@ what the from-scratch baseline number means:
    *validation*.
 
 None of this changes §4's spec, but fixing (1) will move the from-scratch
-baseline, which is the number the probe gets compared against.
+baseline, which is the number the probe gets compared against — and (0) has to
+be fixed before anything can be measured at all. §4 *does* have one error of its
+own; see correction 19.
 
 ### Phase 7 — what actually happened (2026-09-01, GPU box)
 
@@ -412,6 +426,15 @@ Phase 7 did not change that — the flow session stays at its budgeted 1.5 AH.
     branch**, which is why Phases 2 and 7 were recorded here only after the fact.
     Updated on Yoav's explicit instruction (2026-09-01); treat §5 as superseded
     on this point, as it already is for `download_data.py` (Phase 2, open item 1).
+19. **§4's three-channel recipe does not stack.** It says to build the channels
+    from mel-spectrograms with different window sizes *and hop lengths*.
+    Measured: at `hop_length` 512 / 1024 / 2048 a 5s ESC-50 clip gives
+    431 / 216 / 108 frames, so the three cannot be stacked into one tensor
+    without resampling. Varying `n_fft` (1024 / 2048 / 4096) at a **fixed**
+    `hop_length` keeps all three at 431 frames and stacks directly, at 0.03 s per
+    clip. Either resample to a common width or vary `n_fft` alone — the
+    pedagogical point that "make it look like an RGB image" has better and worse
+    answers survives either way, but the notebook should say which was done.
 
 ---
 
