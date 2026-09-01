@@ -15,6 +15,11 @@ Maintained as work lands. Last updated 2026-09-01.
 
 Branch `DL2026` is pushed to `origin` and tracks `origin/DL2026`.
 
+**Working agreement (2026-09-01).** The remote GPU agent owns `DL2026-gpu` and may
+edit this plan there to record what it did. The local session owns `DL2026` and is
+responsible for **merging `DL2026-gpu` into `DL2026`**, including resolving any
+conflicts in this file. Neither side edits the other's branch.
+
 **Phase numbering.** The old "Phase 3b" is now **Phase 7**, and the autoencoders
 work added below is **Phase 8**. Section numbers (§2, §3, §4b, §12, …) are frozen
 document anchors and do *not* track phase numbers — `DL2026_GPU_HANDOFF.md` cites
@@ -24,12 +29,12 @@ Read the status table as the index of what to do.
 | Phase | Status | Where | Notes |
 |---|---|---|---|
 | 1 (§2) Branch assembly | **DONE** | local, `313621a` | branch `DL2026` created off `origin/DeepLearning` |
-| 2 (§3) `sessions/transfer.ipynb` | **DONE** | GPU box, `DL2026-gpu` `20da46a`+`1ae6a4d` | probe 67.4-67.9%, fine-tune 76.6-76.8% top-1; see below |
+| 2 (§3) `sessions/transfer.ipynb` | **DONE, MERGED** | GPU box `20da46a`+`1ae6a4d`, merged to `DL2026` | probe 67.4-67.9%, fine-tune 76.6-76.8% top-1; see below |
 | 3 (§4) `sessions/audio.ipynb` | **IN PROGRESS** | GPU box, `DL2026-gpu` | not started; four pre-existing defects surveyed, see below |
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | the `sessions/transfer.ipynb` link now resolves |
-| 7 (§4b) `sessions/flow.ipynb` | **DONE** | GPU box, `DL2026-gpu` `c044755` | UCI POWER added; flow +0.350 nats against a −7.742 Gaussian, see below |
+| 7 (§4b) `sessions/flow.ipynb` | **DONE, MERGED** | GPU box `c044755`, merged to `DL2026` | UCI POWER added; flow +0.350 nats against a −7.742 Gaussian, see below |
 | 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
 | 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; Phases 2 and 7 verified on GPU, Phase 3 outstanding |
 
@@ -1100,3 +1105,54 @@ used, and unlike the Keras sessions there is **no `load_model` checkpoint path i
 this notebook**. Adding one would be a sensible follow-up.
 
 `autoencoders-plan.md` is now fully spent and can be deleted.
+
+---
+
+## 13. Merge log — `DL2026-gpu` into `DL2026`
+
+Maintained by the local session, which owns `DL2026` and all merges.
+
+### Merge 1, 2026-09-01 — Phases 2 and 7
+
+Merged `origin/DL2026-gpu` (through `f35042b`) into `DL2026` with `--no-ff`. Clean,
+no conflicts: the branches had touched disjoint files, and although both sides now
+edit this plan, `DL2026` had not modified it since the branch point.
+
+**Reviewed before merging.** Both notebooks: valid `nbformat`, zero *unintended*
+cell errors, monotonic execution counts confirming a genuine clean top-to-bottom
+run, no `torch` / `tensorflow` / `tensorflow_datasets` / `transformers`, opening
+logo and title, "In this session we will understand", References and Colophon,
+validation rather than test terminology. Spot-checked the code as well as the
+prose: `transfer.ipynb` uses the *official* CUB split via `is_training` rather than
+a random one, and feeds raw uint8 to `EfficientNetV2S`, which is correct because
+that model rescales internally.
+
+**Both notebooks exceeded their briefs in the right direction** — by measuring
+things the spec had only speculated about, and by declining to claim what they had
+not measured. `transfer.ipynb` answered "why are we below the published 85%?" with
+an unfreeze-depth sweep rather than an assumption, found the obvious explanation
+insufficient, and named the untested levers as untested. `flow.ipynb` refused to
+present +0.350 nats as reproducing MAF's 0.24, correctly attributing the difference
+to the rational-quadratic spline transformer postdating that paper, and quantified
+both the subsample cost (0.477 nats on the full 1.66M rows) and KDE's scaling.
+
+**Post-merge validation:** every local link in `index.ipynb` now resolves — the
+`sessions/transfer.ipynb` link that had been dead since Phase 6 is the last one
+closed. No forbidden frameworks anywhere. All session, exercise and solution
+notebooks valid. All 18 session notebooks now use `../logo.png` in the opening
+cell. `ruff` clean, `download_data.py --list` works.
+
+**A validation caveat worth recording before §9 runs.** `sessions/jax.ipynb`
+contains one stored cell error, and it must stay. Cell 27 sets up "we cannot
+compile it this way", cell 28 demonstrates the `TypeError` from tracing a shape
+that depends on an argument value, cell 29 explains it, and cell 30 fixes it with
+`static_argnames`. A blanket "no cell errors" check will flag this notebook; the
+correct rule is **no *unintended* cell errors**. Do not "fix" it.
+
+**Also merged:** the Phase 7 logo housekeeping (`jax.ipynb` to `../logo.png`,
+`gamma_regression.ipynb` gains the `Py4Eng` alt text, `CNN_timeseries.ipynb` gains
+an opening logo it never had); the `download_data.py` fix for CUB's stray root
+`attributes.txt`, which is a genuine bug in the local session's extractor; and
+`NEXT_SESSION.md`, the agent's own session-handoff note, kept as-is.
+
+**Not yet merged:** Phase 3 (`sessions/audio.ipynb`), in progress on `DL2026-gpu`.
