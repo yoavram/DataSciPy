@@ -11,7 +11,7 @@ phase ends at a committable state.
 
 ## 0a. Progress log
 
-Maintained as work lands. Last updated 2026-09-01.
+Maintained as work lands. Last updated 2026-09-01 (Phase 3).
 
 Branch `DL2026` is pushed to `origin` and tracks `origin/DL2026`.
 
@@ -25,13 +25,13 @@ Read the status table as the index of what to do.
 |---|---|---|---|
 | 1 (§2) Branch assembly | **DONE** | local, `313621a` | branch `DL2026` created off `origin/DeepLearning` |
 | 2 (§3) `sessions/transfer.ipynb` | **DONE** | GPU box, `DL2026-gpu` `20da46a`+`1ae6a4d` | probe 67.4-67.9%, fine-tune 76.6-76.8% top-1; see below |
-| 3 (§4) `sessions/audio.ipynb` | **IN PROGRESS** | GPU box, `DL2026-gpu` | not started; four pre-existing defects surveyed, see below |
+| 3 (§4) `sessions/audio.ipynb` | **DONE** | GPU box, `DL2026-gpu` | from-scratch 55.3-57.0%, probe 66.3-67.0%, fine-tune 75.0-75.5% top-1; see below |
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | the `sessions/transfer.ipynb` link now resolves |
 | 7 (§4b) `sessions/flow.ipynb` | **DONE** | GPU box, `DL2026-gpu` `c044755` | UCI POWER added; flow +0.350 nats against a −7.742 Gaussian, see below |
 | 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
-| 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; Phases 2 and 7 verified on GPU, Phase 3 outstanding |
+| 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; Phases 2, 3 and 7 verified on GPU. Day 4 hour shortfall (correction 10) still open |
 
 ### Phase 1 — what actually happened
 
@@ -209,6 +209,10 @@ Worth keeping: unfreezing `top_*` alone barely beats the frozen probe (68.62% vs
 
 ### Phase 3 — survey before starting (2026-09-01, revised after Phase 7)
 
+> **Superseded by the entry below.** Three of the six defects listed here did not
+> reproduce when executed; see "Phase 3 — what actually happened" and corrections
+> 20-22. Kept for the record.
+
 Not started. Reading `sessions/audio.ipynb` as it stands turned up four defects
 that predate the restructure and that §4 does not mention; **executing** its
 data-prep path afterwards turned up a fifth, which is fatal, and a sixth. The
@@ -318,6 +322,83 @@ paper drops are documented in a table in the notebook.
 
 **Not done, and outside this phase:** Day 4 is still 2 AH short (correction 10).
 Phase 7 did not change that — the flow session stays at its budgeted 1.5 AH.
+
+### Phase 3 — what actually happened (2026-09-01, GPU box)
+
+Done on `DL2026-gpu`. `sessions/audio.ipynb` went from 44 to **68 cells** and from
+35 MB to **2.8 MB** (the old blob was embedded `ipywidgets` audio players; the new
+notebook embeds one). Executes top to bottom from a clean kernel in **14m09s** on
+one RTX A4000, and again from warm caches in 7m55s. Committed with
+outputs; 10 figures.
+
+**Structure**, mirroring `sessions/transfer.ipynb` on a different modality: ESC-50
+loading and mel-spectrograms (kept from the old notebook) → the fold split →
+Protocol A, EchoNet from scratch → spectrograms-as-images and the channel
+construction → Protocol B, frozen `EfficientNetV2S` probe → Protocol C, fine-tune
+→ comparison, discussion, six exercises.
+
+**Measured, official ESC-50 folds 1-4 vs fold 5, clip level, seeds 23 and 24:**
+
+| protocol | trained parameters | top-1 | top-5 |
+|---|---|---|---|
+| EchoNet from scratch | 9,130,130 | 55.25-57.00% | 84.50-85.50% |
+| linear probe | 64,050 | 66.25-67.00% | 90.00-90.25% |
+| fine-tune (`block6*`+`top_*`) | 14,856,026 | 75.00-75.50% | 93.00-93.50% |
+
+**Reproducibility, measured across full re-executions.** The two transfer rows
+reproduce *exactly* — same seeds, same numbers, every run. The from-scratch row
+does not: three full executions with the same two seeds gave 55.25%/57.00%,
+57.00%/57.50% and 57.50%/55.25%. 150 epochs of a 9M-parameter conv net accumulate
+enough non-deterministic GPU reduction order to move it ~2 points, and
+`keras.utils.set_random_seed` does not prevent it. Across those runs from-scratch
+spans 55.25-57.50%. The notebook says so in its discussion; the committed outputs are
+from the first run and the discussion table matches them.
+
+**The probe beat the from-scratch CNN by ~10 points.** §4 warned it might not, and
+told us to write the discussion around whatever happened; it did, so the notebook
+says so — but it also names both ways the comparison is unfair (EchoNet gets a
+17-segment vote per clip and scores only ~44% at the segment level; the backbone
+is 20M ImageNet-pretrained parameters against EchoNet's 9M from scratch).
+
+**The domain gap, quantified against Phase 2.** Probe and fine-tune land within a
+point of the bird numbers (67.4-67.9% / 76.6-76.8%), but transfer is worth ~+46
+points on CUB (against Branson et al.'s 10.9% from scratch) and only ~+10 here.
+That contrast is the spine of the discussion cell.
+
+**Channel construction — measured, and it makes no difference.** Three
+constructions, same backbone, head, split and seeds:
+
+| channels | top-1 |
+|---|---|
+| grayscale replicated x3 | 67.00-68.25% |
+| three `n_fft` (1024/2048/4096), fixed `hop_length` | 66.25-67.00% |
+| 384 mels split into 3 bands of 128 | 66.75-67.50% |
+
+All inside the 0.75-1.25 point seed spread, and the *simplest* option is nominally
+best. This is a null against the intuition behind §4's recipe, so the notebook
+reports it as one and states the caveats: a frozen probe on a single fold is not
+the ensemble full fine-tune under 5-fold CV that Palanisamy et al. measured, and
+two seeds on 400 clips can only rule out large effects. `multi-window` is kept as
+the notebook's default because it is what the literature does. Took §4's `n_fft`
+option, per correction 19.
+
+**Open items:**
+
+1. Single-fold split, not 5-fold CV — stated in the notebook rather than hidden.
+   Cross-validating multiplies every training run by five and does not fit the
+   1 AH budget. It is exercise 1.
+2. `requirements.txt` still lacks `librosa` (correction 4). Unchanged by this
+   phase; the notebook drops the old `ipywidgets` dependency.
+3. Checkpoints are gitignored and live at `~/Work/Teaching/DataSciPy/data/` on the
+   GPU box: `esc50_scratch.keras` (73 MB), `esc50_effnetv2s_probe.keras`
+   (0.8 MB), `esc50_effnetv2s_finetune.keras` (202 MB), three `_history.p` files,
+   plus regenerable caches `esc50_mel60.npy` (207 MB), three
+   `esc50_image_*.npy` (331 MB each) and three `esc50_effnetv2s_embeddings_*.npy`
+   (10 MB each). Disk on the box is at 98%; the `esc50_image_*` caches are the
+   first thing to delete.
+4. ESC-50 is fetched in-notebook from
+   `https://github.com/karoldvl/ESC-50/archive/master.zip` into
+   `data/ESC-50-master`, which matches `download_data.py`. No edit needed there.
 
 ### Corrections to this plan, found while executing it
 
@@ -435,6 +516,48 @@ Phase 7 did not change that — the flow session stays at its budgeted 1.5 AH.
     clip. Either resample to a common width or vary `n_fft` alone — the
     pedagogical point that "make it look like an RGB image" has better and worse
     answers survives either way, but the notebook should say which was done.
+
+20. **§4 defect 1 (the "fatal" one) does not reproduce.** The handoff says
+    `load_wave` returns `scipy.io.wavfile.read`'s int16 array and that librosa
+    1.0.0 therefore raises `ParameterError: Audio data must be floating-point`,
+    so nothing below cell 13 had ever run. The committed `load_wave` in fact ends
+    with `wave = (wave + 0.5) / (0x7FFF + 0.5)`, which promotes to **float64**;
+    librosa 1.0.0 accepts it and `load_spectogram` returns a `(60, 431)` array.
+    Verified by running the committed cells unchanged. The suggested fix
+    (`wave.astype(np.float32) / 32768.0`) is still the better line — it halves the
+    memory and drops the per-clip peak normalization, which throws away loudness —
+    and Phase 3 adopted it, but it was not unblocking anything.
+
+21. **§4 defect 3 (the leaking split) is wrong about the mechanism, and the
+    "~55%" it is measured against does not reproduce.** Three separate findings:
+
+    a. `validation_split=0.1` does **not** put segments of one clip on both sides.
+       Keras takes the validation set from the *contiguous tail of the array,
+       before shuffling* — verified directly with a metric that reports the mean
+       label of each split (train 0.0, validation 1.0 on a tail-labelled array).
+       The segments are stored 17-in-a-row per clip and 10% of 2,000 clips is 200
+       whole clips, so the cut lands on a clip boundary. Only 2 of those 200
+       validation clips share a `src_file` with the training set.
+    b. The old split is still wrong, for a different reason: the tail of a
+       filename-sorted `esc50.csv` covers only **40 of the 50 classes**, with 1 to
+       8 clips each, so ten classes are never evaluated.
+    c. The old notebook's "~55%" does not reproduce. Running the committed
+       configuration unchanged (including `amplitude_to_db`) gives **44.0-47.6%**
+       segment-level over two seeds — statistically indistinguishable from the
+       **43.8-44.6%** the official fold split gives. So fixing the split did *not*
+       move the baseline, contrary to the handoff's "do this first, it moves the
+       number the whole session is compared against."
+
+    The genuinely leaky split — permute the segments and *then* hold out 10% —
+    was measured for the notebook and scores **77.6-79.4%**, a 34-point
+    inflation. That number is now the teaching content of the split section, and
+    it is a far better one than the defect as originally described.
+
+22. **§4's "no ESC-50 checkpoint exists" and the prep-cost figures are correct;
+    its cell-18 timing note is now moot.** Mel-spectrogram prep for all 2,000
+    clips measured 10s (60 mels) and 17-53s for each 128-mel three-channel image
+    stack, matching the handoff's 7 ms/clip. The segmenter does give 17 segments
+    per clip and 34,000 total at 1.65 GB in float32, as stated.
 
 ---
 
