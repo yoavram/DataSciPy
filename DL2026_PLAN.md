@@ -185,18 +185,27 @@ Worth keeping: unfreezing `top_*` alone barely beats the frozen probe (68.62% vs
 
 **Open items from this phase:**
 
-1. **`data/attributes.txt` is untracked and not gitignored.** The CUB tarball
-   carries it at its root *next to* `CUB_200_2011/`, so extraction drops it into
-   `data/`. Nothing in the repo uses CUB attribute data. Deleted from the working
-   tree, but a fresh clone recreates it. The durable fix is one line in
-   `download_data.py`, using machinery already there — add
-   `keep=("CUB_200_2011",)` to the `cub` entry. Not applied: the handoff's §5
-   permits editing only the `maf-benchmarks` `keep` tuple. **Needs a decision.**
-2. **Disk on the GPU box is at 97%, 27 GB free.** The CUB image cache alone is
-   1.8 GB and the MAF download for Phase 7 is another 857 MB.
+1. **`data/attributes.txt` — fixed.** The CUB tarball carries it at its root
+   *next to* `CUB_200_2011/`, so extraction dropped it into `data/`, where it was
+   untracked and not gitignored. Nothing in the course uses CUB attribute data.
+   `download_data.py`'s `cub` entry now sets `keep=("CUB_200_2011",)`, using the
+   filtering machinery the `maf-benchmarks` entry already relied on; with
+   `strip=0` the stray root file fails the prefix test and the dataset tree
+   extracts unchanged. Verified against a synthetic tarball mirroring the real
+   layout. This edit goes beyond `DL2026_GPU_HANDOFF.md` §5, which permits editing
+   only the `maf-benchmarks` `keep` tuple — **done on Yoav's explicit
+   instruction**, so §5 should be read as superseded on this point.
+   Note that the *already extracted* `data/CUB_200_2011/attributes/` (70 MB) is
+   untouched by this and is also unused; it can be deleted freely.
+2. **Disk on the GPU box.** The two regenerated CUB caches
+   (`cub_images_224.npy` 1.7 GB, `cub_effnetv2s_embeddings.npy` 58 MB) were
+   **deleted** to reclaim space; the notebook rebuilds both in ~60s (38s decode,
+   21s embed). `data/CUB_200_2011` (1.2 GB) is kept, since re-fetching it is a
+   1.1 GB download. That leaves 27 GB free, against an 857 MB MAF download for
+   Phase 7.
 3. Checkpoints are gitignored and live at `~/Work/Teaching/DataSciPy/data/` on the
    GPU box: `cub_effnetv2s_probe.keras` (3.1 MB),
-   `cub_effnetv2s_finetune.keras` (205 MB), plus both `_history.p` files.
+   `cub_effnetv2s_finetune.keras` (196 MB), plus both `_history.p` files.
 
 ### Phase 3 — survey before starting (2026-09-01)
 
