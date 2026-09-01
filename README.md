@@ -45,3 +45,21 @@ VS Code will now create a virtual environment with course dependencies, which ca
 
 - Open `index.ipynb` in VS Code.
 - When VS Code asks for a kernel, choose the `.venv` environment you created.
+
+#### A note on the Keras backend
+
+This course runs Keras 3 on the **JAX** backend and does not install TensorFlow.
+Keras defaults to TensorFlow, so `import keras` would fail with
+`ModuleNotFoundError: No module named 'tensorflow'` if the backend were left
+unset. The `.env` file in the course folder sets `KERAS_BACKEND=jax`, and VS Code
+loads it automatically — so if you followed the steps above, this is already
+handled.
+
+If you run the notebooks outside VS Code (plain `jupyter lab` from a terminal,
+say), set it yourself first:
+
+```bash
+export KERAS_BACKEND=jax      # Windows PowerShell: $env:KERAS_BACKEND = "jax"
+```
+
+See [LOCAL_SETUP.md](LOCAL_SETUP.md) for a permanent alternative.

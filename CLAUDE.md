@@ -38,10 +38,33 @@ are downloaded and parsed by hand (`urllib` + `tarfile`/`zipfile` + PIL/NumPy) o
 fetched by `download_data.py`; `DL2026_GPU_HANDOFF.md` §2a has the reference
 loader to copy.
 
-The backend is selected globally by `~/.keras/keras.json` (`"backend": "jax"`), so
-session notebooks import `keras` directly with no `KERAS_BACKEND` dance. `index.ipynb`
-documents the `os.environ['KERAS_BACKEND'] = 'jax'` fallback for students whose config
-is unset; use that form only if a notebook must be self-contained.
+**The backend is not configured by anything in the notebooks, and this is a live
+trap.** Keras 3 hardcodes `_BACKEND = "tensorflow"`; the course does not install
+TensorFlow; so with the backend unset, `import keras` dies with
+`ModuleNotFoundError: No module named 'tensorflow'` in every session notebook.
+Reproduce it with `env -u KERAS_BACKEND KERAS_HOME=$(mktemp -d) python -c "import keras"`.
+
+Three things select the backend, in Keras's own order of precedence:
+
+1. the `KERAS_BACKEND` environment variable;
+2. `$KERAS_HOME/keras.json`, defaulting to `~/.keras/keras.json` — **machine-local
+   state, not repo state**, which is why a machine that has run Keras before may
+   work while a fresh one does not;
+3. otherwise the TensorFlow default, i.e. failure.
+
+The repo ships `.env` with `KERAS_BACKEND=jax`, which VS Code's Python extension
+loads automatically (`python.envFile` is pinned in `.vscode/settings.json`). That
+covers the route `README.md` tells students to use. It does **not** cover Jupyter
+launched from a terminal, `nbconvert`, or a bare `python` — set `KERAS_BACKEND=jax`
+in the environment for those. Keras only ever reads `$KERAS_HOME/keras.json`; a
+`keras.json` in the working directory is ignored.
+
+Do not set `KERAS_HOME` to the repo to solve this: it also relocates Keras's dataset
+and pretrained-weight cache into the course folder.
+
+If a notebook must be self-contained regardless of environment, use the
+`os.environ['KERAS_BACKEND'] = 'jax'` form *before* importing Keras, as
+`index.ipynb` documents.
 
 ## Environment and running notebooks
 

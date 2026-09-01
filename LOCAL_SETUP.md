@@ -63,7 +63,20 @@ python -c "import keras, jax; print(keras.__version__, keras.backend.backend(), 
 Expected: a Keras version of `3.x`, backend `jax`, and a backend device of `cpu`
 or `gpu`.
 
-If the backend is not `jax`, set it once in `~/.keras/keras.json`:
+**Why this matters:** Keras 3 defaults to the TensorFlow backend and this course
+does not install TensorFlow, so with the backend unset `import keras` fails with
+`ModuleNotFoundError: No module named 'tensorflow'` in every session notebook.
+
+The repository ships a `.env` file containing `KERAS_BACKEND=jax`, which **VS Code
+loads automatically**. It does *not* help if you launch Jupyter from a terminal, as
+this conda route does — Jupyter does not read `.env`. So on this route, set the
+backend yourself, either per-shell:
+
+```bash
+export KERAS_BACKEND=jax          # Windows PowerShell: $env:KERAS_BACKEND = "jax"
+```
+
+or permanently in `~/.keras/keras.json`:
 
 ```json
 {"floatx": "float32", "epsilon": 1e-07, "backend": "jax", "image_data_format": "channels_last"}
