@@ -1,55 +1,57 @@
-# Next session: Phase 7 — `sessions/flow.ipynb`
+# Next session: Phase 3 — `sessions/audio.ipynb`
 
-Branch `DL2026-gpu` (pushed, tracks `origin/DL2026-gpu`). Phase 2 is done; Phase 3
-(`audio.ipynb`) is deliberately **not** next.
+Branch `DL2026-gpu` (tracks `origin/DL2026-gpu`). Phases 2 and 7 are done and
+committed with outputs. Phase 3 is the last GPU-bound item in the handoff.
 
 ## Read, in this order
 
-1. `DL2026_PLAN.md` §4b — the authoritative spec for this notebook. Detailed and current.
-2. `DL2026_GPU_HANDOFF.md` §4b — operational deltas only (data paths, three traps).
-3. `CLAUDE.md` — house style.
-4. `DL2026_PLAN.md` §0a "Phase 2 — what actually happened" — the environment notes apply to you.
-
-Do **not** resurrect AnAge, penguins, or a conditional flow; §4b was respecified
-around UCI POWER and supersedes all of that.
+1. `DL2026_PLAN.md` §4 — the spec for this notebook.
+2. `DL2026_PLAN.md` §0a "Phase 3 — survey before starting" — **four pre-existing
+   defects that §4 does not mention.** The first one changes what the
+   from-scratch baseline number means.
+3. `DL2026_GPU_HANDOFF.md` §3 and §5–7 — operational detail, boundaries,
+   deliverables, acceptance checks.
+4. `CLAUDE.md` — house style.
 
 ## Start here
 
 ```bash
-.venv/bin/python download_data.py maf-benchmarks   # 857 MB; lands in data/maf/{power,miniboone}
+.venv/bin/python download_data.py esc50   # check whether it is already present
+ls data/ESC-50-master
 ```
-Not downloaded yet — kick it off before reading, it is the long pole.
 
-Then: keep the existing `make_moons` material as the first half (~45 min) and add
-UCI POWER as the second (~30 min). 1.5 academic hours total.
+The four defects to fix while restructuring, from the survey:
+
+1. `validation_split=0.1` splits over ~1s overlapping *segments* cut from the
+   same 5s clip, so windows of one recording land on both sides and the reported
+   ~55% is optimistic. ESC-50 ships 5 official folds — split on `fold`.
+2. The history plot reads `history['acc']` / `history['val_acc']`; Keras 3 uses
+   `accuracy` / `val_accuracy`, so the cell raises `KeyError` as committed.
+3. Saves to `../data/keras_esc50_model.h5`; the branch idiom is `.keras`.
+4. Uses *test* terminology against the branch-wide sweep to *validation*.
+
+Note `sessions/audio.ipynb` is 34 MB (embedded audio and figure outputs).
 
 ## Verified for you
 
-- Environment is ready: keras 3.15.1, jax 0.11.1, backend `jax`, `gpu`,
-  2x RTX A4000. `.venv` exists.
-- **flowjax 19.1.1 + equinox 0.13.8 run fine on jax 0.11.1, on GPU** — a
-  `masked_autoregressive_flow` builds and scores. No version risk.
-- `data/maf` is gitignored. Disk is at 97%, 27 GB free — enough, but not roomy.
-- `sessions/flow.ipynb` is 21 cells and all three housekeeping defects in §4b are
-  real: it uses `img/logo.png`, has no Colophon, and has no "In this session we
-  will understand:" intro. `sessions/jax.ipynb` needs the same one-line logo fix.
+- Environment: keras 3.15.1, jax 0.11.1, backend `jax`, `gpu`, 2x RTX A4000.
+  `.venv` exists at 3.12.13.
+- Disk was at 97% / 27 GB free before Phase 7; `data/maf` now holds 138 MB.
+  `data/CUB_200_2011/attributes/` (70 MB) is unused and can be deleted.
+- Notebooks execute cleanly with
+  `.venv/bin/jupyter nbconvert --to notebook --execute --inplace <nb>`.
 
-## The three traps (detail in §4b)
+## Convention to follow
 
-1. Dequantization noise is **not** optional — without it the log-likelihood
-   diverges upward and the model looks great. Make it an explicit, commented step.
-2. Do not score KDE naively; it is O(n_train x n_test) on ~200k test rows. Score a
-   few-thousand-point subsample and say so.
-3. Do not promise to reproduce the published 0.24 nats.
+Anything stated as a mechanism in a discussion cell must be measured, or
+labelled unmeasured. GPU runs here are minutes. See the unfreeze-depth table in
+`sessions/transfer.ipynb` and the model-comparison table in `sessions/flow.ipynb`
+for the pattern.
 
-## Convention to follow, learned the hard way in Phase 2
+## Not yet done, outside the GPU handoff
 
-Anything stated as a mechanism in a discussion cell must be measured, or labelled
-unmeasured. GPU runs here are minutes. See the unfreeze-depth table in
-`sessions/transfer.ipynb` for the pattern.
-
-## Deliverable
-
-Notebook executes top to bottom from a clean kernel, committed **with outputs**.
-Report measured test log-likelihood in nats for all four models (Gaussian, GMM,
-KDE, flow), plus KDE wall-time and the subsample size.
+- `DL2026_PLAN.md` §0a still lists Phase 7 as DELEGATED; it is done. §5 of the
+  handoff forbids editing the plan from this branch, so whoever merges should
+  update the status table and record the Phase 7 numbers.
+- Day 4 is still 2 AH short (correction 10). Phase 7 did not change that: the
+  flow session remains 1.5 AH.
