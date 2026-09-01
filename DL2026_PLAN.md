@@ -29,9 +29,9 @@ Read the status table as the index of what to do.
 | 4 (§5) `sessions/finetuning.ipynb` | **DROPPED** | — | notebook deleted from the branch; §5 is void |
 | 5 (§6) nanochat `transformer_ts` | **POSTPONED** | — | deferred by decision; source notebook stashed out of `origin/master` |
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | the `sessions/transfer.ipynb` link now resolves |
-| 7 (§4b) `sessions/flow.ipynb` | **DELEGATED** | remote GPU agent | respecified as UCI POWER, then moved to `DL2026_GPU_HANDOFF.md` §4b |
+| 7 (§4b) `sessions/flow.ipynb` | **DONE** | GPU box, `DL2026-gpu` `c044755` | UCI POWER added; flow +0.350 nats against a −7.742 Gaussian, see below |
 | 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
-| 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; full GPU runs depend on Phases 2, 3 and 7 |
+| 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; Phases 2 and 7 verified on GPU, Phase 3 outstanding |
 
 ### Phase 1 — what actually happened
 
@@ -230,6 +230,81 @@ what the from-scratch baseline number means:
 None of this changes §4's spec, but fixing (1) will move the from-scratch
 baseline, which is the number the probe gets compared against.
 
+### Phase 7 — what actually happened (2026-09-01, GPU box)
+
+Done on `DL2026-gpu`, commit `c044755`. `sessions/flow.ipynb` went from 21 to 49
+cells and executes top to bottom from a clean kernel in **2m59s** on an RTX A4000,
+committed with outputs (2.1 MB, 10 figures). The `make_moons` material is kept
+intact as the first half; UCI POWER is the second.
+
+**Measured test log-likelihood on POWER**, all four models on the same 200,000-row
+training subsample:
+
+| model | nats | scored on |
+|---|---|---|
+| Gaussian | **−7.742** | 204,928 points |
+| GMM, 50 components | **−0.123** | 204,928 points |
+| KDE, bandwidth 0.08 | **−0.783** | 5,000-point subsample |
+| MAF, 8 spline layers | **+0.350** | 204,928 points |
+
+The Gaussian reproduces the MAF paper's published −7.74 exactly, which is the
+check that the Appendix D preprocessing is right. KDE fit-and-score cost **32.6 s**
+for 5,000 test points; the full test set would take ~22 minutes, so it is scored
+on a subsample and the notebook says so.
+
+Timings: flow training 36 s (38 epochs, early-stopped), flow scoring of all
+204,928 test points 7.7 s, GMM sweep over 5/10/20/50 components 48 s. Nothing
+needs a checkpoint — the whole second half runs live in class.
+
+**§4b's warning 3 inverted, and this is now the discussion's centrepiece.** We
+did not fall short of the published MAF(10) 0.24 nats, we exceeded it at 0.350.
+The reason is legitimate rather than a fluke: the notebook's transformer is a
+*rational-quadratic spline* (Durkan et al. 2019), two years newer and strictly
+more expressive than the affine transformer MAF used, so this is a later model
+run with less data and no hyperparameter search. It lands between MAF (0.24) and
+NAF (0.62). The notebook says exactly this instead of claiming a reproduction.
+
+**Everything asserted as a mechanism is measured**, per the Phase 2 convention:
+
+- **The 200k subsample is a real handicap, and it is imposed for KDE's benefit.**
+  The identical flow on all 1,659,917 training rows scores **0.477 nats in 244 s**.
+  We kept 200k anyway so all four models see the same data. Stated with both
+  numbers in the notebook.
+- **KDE's cost is linear in the training set**, as the O(n_train × n_test) claim
+  predicts: 4.9 / 9.2 / 16.9 / 33.0 s to fit and score 5,000 test points at
+  25k / 50k / 100k / 200k training rows. Quoted in the discussion; turned into
+  exercise 4.
+- **A 100-component GMM reaches +0.014 nats in 94 s** — still climbing, still
+  behind the flow, and too slow to run live, so it is quoted rather than fitted
+  in the notebook.
+- Two consecutive runs of the committed notebook reproduced 38 epochs and +0.350
+  exactly; an earlier variant stopped at 46 epochs and scored +0.368. The
+  notebook warns that the second decimal can move and why.
+
+**Exercises.** Three of the four knob-turning exercises were replaced, one more
+than §4b asked for: (3) drop the dequantization noise and watch the likelihood
+diverge, (4) measure the KDE-versus-flow cost crossover, (5) MINIBOONE, 36,488
+rows in 43 dimensions. The `flow_layers`/`nn_width`/`knots` and KDE-bandwidth
+exercises are kept.
+
+**Housekeeping**, all of §4b's list: house-style opening cell with the "In this
+session we will understand:" bullets, the sentence explaining why this is the one
+notebook on FlowJAX and Equinox rather than Keras, the missing Colophon, and the
+logo path. The logo fix went to all four notebooks correction 1 identified —
+`flow.ipynb`, `jax.ipynb`, `CNN_timeseries.ipynb` (which had no logo at all) and
+`gamma_regression.ipynb` (which had no alt text). References gained Durkan et al.
+2019, Papamakarios et al. 2021 JMLR, Rezende & Mohamed 2015 and the Zenodo record.
+
+**Data.** `download_data.py maf-benchmarks` worked exactly as written — 857 MB
+from Zenodo record 1161203 in ~20 minutes, filtered down to 138 MB at
+`data/maf/power/` and `data/maf/miniboone/`, correctly gitignored. `download_data.py`
+was **not** edited; the `keep` tuple did not need changing. The archive's `power`
+entry is `data.npy`, 2,049,280 × 8 float64; the eight columns and the two the
+paper drops are documented in a table in the notebook.
+
+**Not done, and outside this phase:** Day 4 is still 2 AH short (correction 10).
+Phase 7 did not change that — the flow session stays at its budgeted 1.5 AH.
+
 ### Corrections to this plan, found while executing it
 
 1. **§4b's logo claim needed refining.** In the *opening* cell, `img/logo.png` is
@@ -324,6 +399,19 @@ baseline, which is the number the probe gets compared against.
     and one optional extension remain — see §12 / Phase 8. This also
     supersedes the note in an earlier progress entry that called the document
     unexecuted.
+17. **§4b's warning "do not promise to reproduce 0.24 nats" pointed the wrong
+    way.** The concern was that eight layers on a 200k subsample with no
+    hyperparameter search would fall short of MAF(10)'s published 0.24 nats on
+    POWER. It measured **+0.350**. The warning missed that the notebook's
+    transformer is a rational-quadratic spline from Durkan et al. 2019, which
+    postdates the MAF paper and is more expressive than the affine transformer
+    MAF used — so the comparison was never like-for-like in the direction
+    assumed. The advice itself was still right: do not frame it as a
+    reproduction. See the Phase 7 entry above.
+18. **§5 of `DL2026_GPU_HANDOFF.md` forbids editing this plan from the GPU
+    branch**, which is why Phases 2 and 7 were recorded here only after the fact.
+    Updated on Yoav's explicit instruction (2026-09-01); treat §5 as superseded
+    on this point, as it already is for `download_data.py` (Phase 2, open item 1).
 
 ---
 
@@ -557,7 +645,7 @@ measured numbers in the notebook.
 
 ---
 
-## 4b. Phase 7 — Add a real density-estimation example to `sessions/flow.ipynb`  ➡️ DELEGATED to remote GPU agent (`DL2026_GPU_HANDOFF.md` §4b)
+## 4b. Phase 7 — Add a real density-estimation example to `sessions/flow.ipynb`  ✅ DONE (2026-09-01, GPU box, `c044755`)
 
 *(This was "Phase 3b". Section number kept as a document anchor.)*
 

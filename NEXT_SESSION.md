@@ -50,8 +50,8 @@ for the pattern.
 
 ## Not yet done, outside the GPU handoff
 
-- `DL2026_PLAN.md` §0a still lists Phase 7 as DELEGATED; it is done. §5 of the
-  handoff forbids editing the plan from this branch, so whoever merges should
-  update the status table and record the Phase 7 numbers.
-- Day 4 is still 2 AH short (correction 10). Phase 7 did not change that: the
-  flow session remains 1.5 AH.
+- Day 4 is still 2 AH short (`DL2026_PLAN.md` correction 10). Phase 7 did not
+  change that: the flow session remains 1.5 AH.
+- `DL2026_GPU_HANDOFF.md` §5 says not to edit `DL2026_PLAN.md` from this branch.
+  That is now superseded — Yoav asked for the plan to be kept current here, and
+  Phases 2 and 7 are recorded in its progress log (see correction 18).
