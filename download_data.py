@@ -34,9 +34,14 @@ ARCHIVES = {
         why="sessions/audio.ipynb (Day 3)",
     ),
     "cub": dict(
+        # The tarball carries a stray attributes.txt at its top level, next to the
+        # CUB_200_2011 directory, which would land directly in data/ and is not
+        # gitignored. Nothing in the course uses CUB attribute data, so keep only
+        # the dataset directory.
         url="https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz?download=1",
         archive="CUB_200_2011.tgz",
         target="CUB_200_2011",
+        keep=("CUB_200_2011",),
         size="1.1 GB download",
         why="sessions/transfer.ipynb (Day 3)",
     ),
