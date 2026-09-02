@@ -12,12 +12,14 @@ runnable within its allotted class time*.
 
 ## Branches are course editions, not features
 
-`master` is the general/legacy course; each branch is a different delivery of the
-course with a different audience and framework choice. Current branch: `DeepLearning`
-(the newest deep-learning content, Keras 3 on JAX). Other live branches include
-`torch` (PyTorch port), `amat2025a`/`amat2025b`, `kla2025`, `Mobileye`, `probml`,
-`lam`, plus remote-only legacy branches (`kti2018`, `kti2020`, `amat2019`, `lam2020`,
-`lam2021`, `trees`, `intuit`, `landa`, `IDC2018`).
+`master` is the general/legacy course. Every other branch is a separate *delivery* of
+the course, with its own audience, duration and framework choice — some are named after
+the organization they were taught for, some after the year, some after the framework
+(`torch` is the PyTorch port). Run `git branch -r` to see what exists; do not assume a
+branch is a feature branch or that it is meant to be merged.
+
+Current branch: **`DL2026`** — the newest deep-learning content, Keras 3 on the JAX
+backend, four days plus two more in `yoavram/nanochat`.
 
 Consequences:
 
@@ -90,14 +92,18 @@ Notebooks with long training cells are meant to be *taught*, not retrained: they
 a checkpoint and then reload it, and the training cell is sometimes commented out. Keep
 both paths present when editing.
 
-Known requirements gaps to watch: `librosa` (`exercises/audio.ipynb`) and `corner`
-(`sessions/mle.ipynb`) are imported but not listed.
+`requirements.txt` was audited against every import in every notebook and is complete;
+if you add an import, add it there too. Note `keras>=3.15` is a floor, not a preference:
+the checkpoints in `data/` are written by Keras 3.15.1 and earlier Keras cannot
+deserialize them (see issue #6).
 
 ## Notebook house style (match it exactly)
 
 - Opening markdown cell: `![Py4Eng](../logo.png)`, `# Title`, `## Yoav Ram`, then an
-  "In this session we will understand:" bullet list. (`sessions/flow.ipynb` deviates
-  with `img/logo.png` and no intro cell — that is a known defect, not a pattern.)
+  "In this session we will understand:" bullet list. All 18 sessions use `../logo.png`
+  and all 18 have a Colophon, but only 6 currently carry the intro list — add it to new
+  notebooks, and to old ones you are already editing, rather than treating its absence
+  as the pattern.
 - First code cell: `%matplotlib inline`, imports, and
   `print('Keras:', keras.__version__, 'backend:', keras.backend.backend(), jax.default_backend())`.
 - Closing cells: `# References` (links and papers) then `# Colophon` with the
@@ -119,10 +125,19 @@ Known requirements gaps to watch: `librosa` (`exercises/audio.ipynb`) and `corne
 
 ## Exercises and solutions
 
-Every assignment in `exercises/` has a matching same-named notebook in `solutions/`.
+Every assignment in `exercises/` has a matching same-named notebook in `solutions/`,
+and so does every *in-session* exercise — `FFN`, `K_FFN`, `functional_keras` and
+`softmax_regression` all have one. Keep it that way.
+
 When authoring an exercise from an existing session notebook, strip the target code to
 TODOs while leaving data loading and evaluation intact, and keep the solution notebook
 in sync. `index.ipynb` links both as `[assignment](...) | [solution](...)`.
+
+Two session notebooks therefore **cannot** run top to bottom, by design:
+`softmax_regression` (the `mygradient` stub is a `SyntaxError` until filled in) and
+`K_FFN` (its exercise produces the checkpoint a later cell loads). Any automated check
+should assert *no unintended errors* rather than no errors — `sessions/jax.ipynb` also
+stores one deliberate `TypeError`, demonstrating why `static_argnames` is needed.
 
 ## Data
 
@@ -130,8 +145,9 @@ in sync. `index.ipynb` links both as `[assignment](...) | [solution](...)`.
 `heart.csv`, …). Large or downloadable artifacts are gitignored by extension
 (`*.keras`, `*.h5`, `*.npz`, `*.tar.gz`, `*.zip`, `*.pt`, …) and by directory
 (`data/MNIST`, `data/ESC-50-master`, `data/CUB_200_2011`, `data/Dataset`, `data/gan`).
-Do not commit downloaded corpora or trained weights; route new downloads through code
-in the notebook (or `download_data.py` if reintroduced) and gitignore the output.
+Do not commit downloaded corpora or trained weights; route new downloads through
+`download_data.py` (`--list` shows what it fetches) or through code in the notebook, and
+gitignore the output.
 Notebooks are committed **with** their outputs — figures are part of the teaching
 material — so expect large diffs and do not strip outputs.
 
