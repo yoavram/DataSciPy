@@ -36,7 +36,7 @@ Read the status table as the index of what to do.
 | 6 (§7) index / env / data | **DONE** | local, `e568f74` | the `sessions/transfer.ipynb` link now resolves |
 | 7 (§4b) `sessions/flow.ipynb` | **DONE, MERGED** | GPU box `c044755`, merged to `DL2026` | UCI POWER added; flow +0.350 nats against a −7.742 Gaussian, see below |
 | 8 (§12) `sessions/autoencoders.ipynb` | **DONE** | local | grew past the original spec: label-efficiency sweep, see §12 |
-| 9 (§9) Validation | PARTIAL only | local + remote | local checks pass; Phases 2, 3 and 7 verified on GPU. Day 4 hour shortfall (correction 10) still open |
+| 9 (§9) Validation | **DONE** | local + GPU box | all 18 sessions run end to end; 2 fixed, 3 unrunnable by design. See §14 |
 
 ### Phase 1 — what actually happened
 
@@ -1094,7 +1094,7 @@ Match the existing house style exactly:
 
 ---
 
-## 9. Validation  ⚠️ only partially doable locally — items 1, 2 and 5 need the GPU work
+## 9. Validation  ✅ DONE — see §14 for the results
 
 1. Run every Day 1–4 notebook end to end on GPU. Record wall-clock time per
    notebook in a scratch file.
@@ -1380,3 +1380,83 @@ Run on the merged branch:
 postponed; Day 4's ~2 AH shortfall (correction 10) is undecided; `autoencoders.ipynb`
 has no `load_model` checkpoint path; and the GPU checkpoints for `transfer.ipynb`
 and `audio.ipynb` exist only on the GPU box, since weights are gitignored.
+
+---
+
+## 14. Validation results — every session notebook, 2026-09-01
+
+The three GPU notebooks were run on the GPU box during Phases 2, 3 and 7. The
+remaining fourteen were run here from a clean kernel via
+`jupyter nbconvert --to notebook --execute`, to a scratch copy so the committed
+outputs and their curated figures were left intact. **Total 623 s for all
+fourteen on CPU.**
+
+### Result
+
+**Eleven run clean — all cells executed, zero errors:**
+
+| notebook | s | | notebook | s |
+|---|---|---|---|---|
+| `gamma_regression` | 5 | | `functional_keras` | 42 |
+| `robust-regression` | 6 | | `FFN` | 25 |
+| `linear_regression` | 5 | | `K_CNN` | 59 |
+| `logistic_regression` | 30 | | `GAN` | 131 |
+| `mle` | 14 | | `CNN_timeseries` | 258 |
+| `pretrained` | 6 | | | |
+
+**Three cannot run top to bottom, all three legitimately:**
+
+- `jax` — one deliberate error at cell 28, the `static_argnames` teaching example
+  (merge-1 note above). Needs `--allow-errors`; all 38 cells execute.
+- `softmax_regression` — cell 19 is the `mygradient` stub, `## your code here`,
+  which is a `SyntaxError` by construction, and cell 20 asserts against it. An
+  in-class exercise; never executed (`exec=None`, no outputs).
+- `K_FFN` — cell 25 asks the student to build and save `keras_ffn2_model.keras`,
+  and cell 30 loads it. Same pattern.
+
+**So §9 item 2 is unsatisfiable for those three by design, not by defect.** Any
+future CI must special-case them; the useful invariant is *no unintended errors*.
+
+### Two defects found and fixed
+
+1. **Stale `kernelspec` metadata, 29 notebooks** (`cbc853d`). Three different kernel
+   names inherited from different machines: `python3`, `conda-env-DataSciPy-py`
+   (exists nowhere → `NoSuchKernel`) and `pixi-default`. The pixi case is the
+   dangerous one — that kernel *does* exist on this machine but points at a
+   different environment, so four notebooks ran against the wrong interpreter and
+   raised errors that looked like notebook rot. **`index.ipynb` itself** declared
+   the nonexistent conda kernel, so students met a stale kernel prompt on the first
+   file `README.md` tells them to open. All now `name=python3`,
+   `display_name="Python 3"`; metadata only.
+2. **`sessions/FFN.ipynb` called `scipy.ndimage.shift` without importing scipy**
+   (`cbc853d`), raising `NameError` as committed. Now imports `scipy.ndimage`
+   explicitly; bare `import scipy` happens to work via lazy submodule loading in
+   current scipy but should not be relied on.
+
+### Two failures that were the local environment, not the repo
+
+- `corner` and `librosa` are in `requirements.txt` (added in Phase 6) but were not
+  installed in the local `.venv`. `mle` failed on `corner` until installed — which
+  is evidence *for* the Phase 6 additions, not against them.
+- `K_FFN` first failed deserializing `data/keras_ffn2_model.keras`, which turned out
+  to have been written by **Keras 2.13.1 on 2024-04-30** and is unreadable by Keras
+  3.14. It is gitignored, so no student has it. Moved aside rather than deleted.
+
+### A static scan worth repeating
+
+Before executing anything, all sessions were scanned for the class of rot that had
+broken `audio.ipynb`: Keras 2 metric names (`history['acc']`), `predict_classes`,
+`nb_epoch`, `jax.tree_map`, `keras.backend.*`, `tf.*`. Clean — all eleven
+`keras.backend.*` hits are the house-style `keras.backend.backend()` print, and no
+notebook outside `audio.ipynb` used `history['acc']`. `CNN_timeseries`'s
+`validation_split=0.2` was checked separately and is safe: FordA rows are
+independent samples, with none of the shared-recording structure that made the
+same call wrong in `audio.ipynb`.
+
+### Open item this surfaced
+
+`sessions/softmax_regression.ipynb`'s `mygradient` exercise is **the only in-session
+exercise on the branch with no solution notebook**. `K_FFN`, `FFN`,
+`functional_keras` and every notebook under `exercises/` have one. Given the
+convention in `CLAUDE.md` that every assignment has a matching solution, this looks
+like an oversight. Not written — awaiting a decision.
