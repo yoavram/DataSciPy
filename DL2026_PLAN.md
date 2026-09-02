@@ -1509,3 +1509,48 @@ exercise, and still the only in-session exercise on the branch with no solution 
 Also noted while checking: `data/keras_ffn2_model.h5` is a stale whole-model file from
 November 2023 that no notebook references, and `data/` now holds ~914 MB of checkpoints,
 all correctly gitignored.
+
+### `autoencoders.ipynb` checkpoints, 2026-09-02
+
+The notebook now saves what it trains, closing the open item that it was the only
+long-training session with no `load_model` path. Following the house idiom, each save
+is paired with a working reload immediately after: the dense autoencoder, all three
+bottleneck-sweep models with their encoders and decoders, the convolutional
+autoencoder, the denoising model, and the histories. Two deliberate choices:
+
+- **`conv_encoder` is saved separately** from `conv_autoencoder`, because the
+  label-efficiency section needs the encoder alone and pulling it back out of a loaded
+  composite is fragile.
+- **The fifteen-model label sweep gets its results pickled, not its models.** It is the
+  most expensive cell in the notebook and the only thing anything downstream needs from
+  it is the accuracy table.
+
+Ran end to end on CPU in **25m08s**, zero cell errors. 18 files under `data/`
+(`autoencoder_*.keras`, `autoencoder_*.p`), all verified to load; all gitignored.
+
+**The numbers moved slightly, and the discussion cells were corrected to match.**
+Inserting `load_model` calls perturbs the global RNG stream - building a model
+instantiates initializers, which draw from the seeded generator - so every
+AE-dependent figure shifted. The end-to-end CNN column is *identical* (0.7659, 0.8353,
+0.8979, 0.9411, 0.9856), because that model is re-seeded immediately before each fit.
+Changed: conv MSE 0.0037 to 0.0039; worst-image ratio 12.5x to 13.8x; hardest/easiest
+digit ratio 4.44 to 4.34; and the AE + MLP head advantage at small budgets grew, from
++4.5/+3.9/+3.2/+0.8/-0.2 to **+6.5/+4.6/+3.6/+1.0/-0.1** points. Same conclusions,
+slightly stronger. Both discussion cells were rewritten against the new outputs so the
+prose and the figures in the committed notebook agree - worth checking on any future
+re-run, since a notebook that contradicts its own output is worse than one with no
+numbers at all.
+
+### `softmax_regression` solution written, 2026-09-02
+
+Closes the other open item. Searched every branch first: `solutions/softmax-model.py`
+exists on ten branches but answers a different, older exercise (fitting a softmax model
+with sklearn), and `mygradient` is a `## your code here` stub on all nine branches that
+have it. Nothing to port, so it was written.
+
+`d NLL / d W = X.T @ (softmax(X @ W) - Y) / n`, verified against `jax.grad(NLL)` for
+zero, ones and random weight matrices (agreeing to 6e-07) and then by splicing the
+solution into the session and executing it, so the session's own assertion is what
+passes. Linked from the session cell and from `index.ipynb` under Day 2.
+
+**Every in-session exercise on the branch now has a solution.**
