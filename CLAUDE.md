@@ -35,8 +35,10 @@ JAX for from-scratch derivations; Keras 3 on the JAX backend for applied work.
 **Do not introduce `torch`, `tensorflow`, `transformers`, or `tensorflow_datasets`**
 into notebooks on this branch — including indirectly via a dataset loader. Datasets
 are downloaded and parsed by hand (`urllib` + `tarfile`/`zipfile` + PIL/NumPy) or
-fetched by `download_data.py`; `DL2026_GPU_HANDOFF.md` §2a has the reference
-loader to copy.
+fetched by `download_data.py`. For the house pattern when a dataset arrives as a
+tarball — download, `tarfile.extractall(..., filter='data')`, decode with PIL into a
+preallocated array, cache to `.npy` — see `sessions/transfer.ipynb`, or
+`git show dl2026-plan:DL2026_GPU_HANDOFF.md` §2a.
 
 **The backend is not configured by anything in the notebooks, and this is a live
 trap.** Keras 3 hardcodes `_BACKEND = "tensorflow"`; the course does not install
@@ -138,16 +140,32 @@ material — so expect large diffs and do not strip outputs.
 The table of contents and the entry point students open. Any notebook added, renamed,
 or dropped must be reflected there, and every link must resolve on the current branch.
 
-## Planning documents
+## Project history and planning
 
-`DL2026_PLAN.md` is the authoritative spec for the in-progress restructuring,
-including per-session time budgets in academic hours, a progress log, and an
-explicit out-of-scope list. `DL2026_GPU_HANDOFF.md` is the brief for the two
-GPU-bound notebooks. Read the relevant one before restructuring a session
-notebook, and update the plan as work lands.
+The DL2026 restructuring is **complete** and its planning documents have been removed
+from this branch, deliberately, so that students downloading the repository do not get
+them. They are preserved in git and are the best available account of why this branch
+looks the way it does — including per-session time budgets in academic hours, measured
+results for every notebook, and a list of assumptions that measurement overturned:
 
-`autoencoders-plan.md` is an unexecuted review of `sessions/autoencoders.ipynb`
-proposing a substantial upgrade (latent-space visualization, bottleneck sweep,
-convolutional autoencoder) and noting a real indexing bug in it.
-`density_plan.md` has already been carried out — it is the review that turned the
-old `density-estimation.ipynb` into today's `sessions/flow.ipynb`.
+```bash
+git show dl2026-plan:DL2026_PLAN.md          # the full plan and progress log
+git show dl2026-plan:DL2026_GPU_HANDOFF.md   # the brief for the GPU-bound notebooks
+```
+
+Read that plan before restructuring a session notebook. It records, among other things,
+which notebooks cannot run top to bottom *by design* (`sessions/jax.ipynb` has a
+deliberate error demonstrating `static_argnames`), why the checkpoints require
+`keras>=3.15`, and what was tried and rejected.
+
+Remaining known work is tracked as issues rather than in a plan file:
+
+- [DataSciPy#6](https://github.com/yoavram/DataSciPy/issues/6) — whole-model `.keras`
+  checkpoints are tied to the Keras version that wrote them; proposes saving weights only.
+- [nanochat#1](https://github.com/yoavram/nanochat/issues/1) — the one unfinished phase,
+  a Keras self-attention exercise on FordA, whose deliverable belongs in that repository.
+
+Two older review documents may still be present in the working tree but are untracked and
+fully spent: `density_plan.md` produced today's `sessions/flow.ipynb`, and
+`autoencoders-plan.md` has been carried out apart from leftovers that were finished
+separately.
