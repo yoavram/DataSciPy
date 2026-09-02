@@ -1460,3 +1460,52 @@ exercise on the branch with no solution notebook**. `K_FFN`, `FFN`,
 `functional_keras` and every notebook under `exercises/` have one. Given the
 convention in `CLAUDE.md` that every assignment has a matching solution, this looks
 like an oversight. Not written — awaiting a decision.
+
+### Re-validation under Keras 3.15.1, and the checkpoint compatibility finding
+
+After the GPU checkpoints were copied into `data/`, **four of the five would not load**
+locally. Cause, traced to the innermost exception: they were written by Keras 3.15.1,
+which serializes `input_axes`/`output_axes` into initializer configs, and Keras 3.14.0's
+`GlorotUniform.__init__()` rejects those keys. `esc50_scratch.keras` loaded fine, so the
+break is per-layer-config rather than a clean version gate — which makes it harder to
+diagnose, not easier.
+
+Upgrading locally to Keras 3.15.1 fixed it: **all nine checkpoints in `data/` now load**,
+including those written by 3.14.0, so the incompatibility runs one way only (newer files,
+older Keras). `requirements.txt` accordingly pins **`keras>=3.15`** — the previous
+`keras>=3` permitted an install that cannot open the checkpoints the course ships.
+
+The underlying fragility — whole-model `.keras` files inherit Keras's serialization
+compatibility, and this branch hit *two* such breaks in one day (2.13.1 → 3.x, and
+3.15.1 → 3.14.0) — is tracked as **issue #6**, proposing `save_weights` plus architecture
+from the existing `build_*` functions. Not acted on.
+
+The full fourteen-notebook sweep was then re-run under 3.15.1, since changing the
+environment invalidated the earlier results. **All eleven clean notebooks stayed clean**
+(`CNN_timeseries` 288 s, `GAN` 152 s, `K_CNN` 59 s, the rest under 45 s), with the same
+two by-design exceptions.
+
+### `K_FFN` closed out
+
+`sessions/K_FFN.ipynb` now runs end to end in 12 s. Fixing it required fixing
+`solutions/K_FFN.ipynb`, which had two defects of its own:
+
+1. It referenced `X_test`/`Y_test`, which do not exist in the session — that notebook uses
+   `X_validation`/`Y_validation` after the terminology sweep in `3c4d5e8` — so the solution
+   raised `NameError` as written.
+2. It omitted the save step its own exercise demands, which is the step the session depends
+   on to reach its final cell.
+
+Running the corrected solution against the session's data prep regenerated
+`data/keras_ffn2_model.keras` and `_history.p`: `Flatten -> Dense(100, relu) ->
+Dropout(0.5) -> Dense(10, softmax)`, 79,400 parameters, 97.55% validation accuracy. The
+previous file had been written by Keras 2.13.1 in April 2024 and was unreadable by Keras 3
+at all.
+
+**So only two session notebooks now fail to run top to bottom, both by design:** `jax`
+(deliberate `static_argnames` error) and `softmax_regression` (unsolved `mygradient`
+exercise, and still the only in-session exercise on the branch with no solution notebook).
+
+Also noted while checking: `data/keras_ffn2_model.h5` is a stale whole-model file from
+November 2023 that no notebook references, and `data/` now holds ~914 MB of checkpoints,
+all correctly gitignored.
