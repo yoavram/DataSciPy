@@ -1,11 +1,58 @@
 # DL2026 — GPU handoff: Phase 3
 
-> **Status, 2026-09-01.** Two of the three notebooks are done and pushed to
-> `origin/DL2026-gpu`: **Phase 2** `sessions/transfer.ipynb` (`20da46a`+`1ae6a4d`)
-> and **Phase 7** `sessions/flow.ipynb` (`c044755`). Measured results for both are
-> in `DL2026_PLAN.md` §0a. **Only Phase 3, `sessions/audio.ipynb`, is left** — §4
-> below. `NEXT_SESSION.md` is the short brief for it; this document is the
-> reference behind it.
+> **ALL THREE PHASES ARE DONE, 2026-09-02.** Nothing in this document is
+> outstanding. It is now a record, not a brief — read the merge note below and
+> then treat §§1-7 as background.
+
+## Response from the GPU box — for whoever merges into `DL2026`
+
+**The merge is a fast-forward.** `origin/DL2026` is an ancestor of
+`origin/DL2026-gpu`, so unless you have unpushed local commits on `DL2026` there
+is nothing to resolve:
+
+```bash
+git checkout DL2026 && git pull && git merge --ff-only origin/DL2026-gpu
+```
+
+Ten commits, ending at `43bd8b3`. The three notebooks:
+
+| phase | notebook | commits | headline |
+|---|---|---|---|
+| 2 | `sessions/transfer.ipynb` | `20da46a`, `1ae6a4d` | probe 67.4-67.9%, fine-tune 76.6-76.8% top-1 on CUB |
+| 7 | `sessions/flow.ipynb` | `c044755` | flow +0.350 nats on UCI POWER against a -7.742 Gaussian |
+| 3 | `sessions/audio.ipynb` | `43bd8b3` | from-scratch 55-57%, probe 66-67%, fine-tune 75.0-75.5% on ESC-50 |
+
+Also on the branch, and easy to miss under the notebook diffs: `download_data.py`
+(+5 lines, the CUB stray-`attributes.txt` fix), one-line logo-path corrections in
+`sessions/CNN_timeseries.ipynb`, `sessions/gamma_regression.ipynb` and
+`sessions/jax.ipynb`, plus `DL2026_PLAN.md`, `NEXT_SESSION.md` and this file.
+
+**Four things to know once it lands:**
+
+1. **The notebooks will not re-run on your machine as-is.** Every `load_model`
+   path points at a checkpoint that is gitignored and lives only on the GPU box,
+   at `~/Work/Teaching/DataSciPy/data/` — `cub_effnetv2s_{probe,finetune}.keras`,
+   `esc50_{scratch,effnetv2s_probe,effnetv2s_finetune}.keras` and their
+   `_history.p` files, ~480 MB in total. The outputs are committed, so the
+   notebooks *read* correctly; they just cannot be re-executed without either
+   copying those files across or running the training cells above each load cell.
+   All three are CPU-infeasible.
+2. **`requirements.txt` still needs `librosa`** (and `corner`, for
+   `sessions/mle.ipynb`) — `DL2026_PLAN.md` correction 4. §5 forbade editing it
+   from this branch, so it is yours to do. `sessions/audio.ipynb` no longer
+   imports `ipywidgets`; nothing else was added.
+3. **`index.ipynb` was not touched**, per §5. Its `sessions/transfer.ipynb` link
+   is dead on `DL2026` today and resolves the moment this merges. Checked: every
+   `sessions/`, `exercises/` and `solutions/` link in it resolves after the merge.
+4. **Three claims in §4 of this document did not survive execution** — the
+   "fatal" librosa blocker, the leaking-split mechanism, and the ~55% baseline it
+   was to be compared against. §4 has been left exactly as written, per §5; the
+   corrections are `DL2026_PLAN.md` 20-22. **Do not carry §4's five defects
+   forward into anything else without reading those first.**
+
+**Still open, and not notebook work:** Day 4 is 2 academic hours short
+(`DL2026_PLAN.md` correction 10). Yoav is reviewing it; do not try to close it in
+the merge.
 
 **For:** an agentic coding session on a machine with a CUDA GPU.
 **Scope:** one notebook — `sessions/audio.ipynb` (restructure). Nothing else.
