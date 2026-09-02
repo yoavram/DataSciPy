@@ -1302,3 +1302,81 @@ an opening logo it never had); the `download_data.py` fix for CUB's stray root
 `NEXT_SESSION.md`, the agent's own session-handoff note, kept as-is.
 
 **Not yet merged:** Phase 3 (`sessions/audio.ipynb`), in progress on `DL2026-gpu`.
+
+### Merge 2, 2026-09-01 — Phase 3, and the end of the GPU work
+
+Merged `origin/DL2026-gpu` (through `2e6e802`) with `--no-ff`. **All three GPU
+phases are now on `DL2026`.**
+
+**One conflict**, as predicted once both sides began editing this file: two rows of
+the §0a status table. Resolved by keeping the local `DONE, MERGED` annotations and
+taking the remote's measured Phase 3 numbers. Nothing was lost from either side.
+
+**Reviewed before merging.** Valid `nbformat`, zero stored cell errors, monotonic
+execution counts, no forbidden frameworks, opening logo, intro list, References,
+Colophon, `load_model` path. `sessions/audio.ipynb` went from **35.9 MB to 2.9 MB
+while growing from 44 to 68 cells.**
+
+Measured three-way comparison, clip-level, two seeds:
+
+| model | top-1 | top-5 |
+|---|---|---|
+| EchoNet from scratch | 55.25-57.00% | 84.50-85.50% |
+| Linear probe (frozen ImageNet) | 66.25-67.00% | 90.00-90.25% |
+| Fine-tune | 75.00-75.50% | 93.00-93.50% |
+
+**The probe beats the from-scratch CNN by ~10 points.** §4 explicitly allowed for
+it landing below and asked for whatever actually happened; it landed above.
+
+### Two §4 assumptions overturned by measurement
+
+Both are reported in the notebook rather than buried, which is the behaviour the
+handoff asked for.
+
+1. **Channel construction does not matter.** §4 said not to replicate a grayscale
+   spectrogram across three channels, and to expect multi-window channels to show
+   that "make it look like an RGB image" has better and worse answers. Measured:
+   replicated 67.00-68.25%, multi-window 66.25-67.00%, frequency-split
+   66.75-67.50% — all inside the seed spread, with the **simplest nominally best**.
+   The notebook keeps multi-window for the literature connection while stating
+   plainly that the obvious choice would have served, and correctly notes this is
+   not a contradiction of Palanisamy et al., whose gains come from a fine-tuned
+   ensemble under 5-fold cross-validation.
+2. **`validation_split` does not leak.** This corrects the Phase 3 survey *and*
+   the local session's repetition of it. Keras takes the validation set from the
+   contiguous tail of the array *before* shuffling, and segments are stored 17 per
+   clip, so the tail is a whole number of complete clips and no recording is split.
+   That is an undocumented implementation detail of `fit`, not something the code
+   says. It is still the wrong split, for a better reason: the filename-sorted tail
+   holds only **40 of the 50 classes**, so ten are never evaluated at all.
+
+   What *does* leak is the natural thing to write instead — shuffling segments
+   before splitting, worth **34 points** of self-deception (77.6-79.4% against
+   43.8-44.6% on the official folds). The notebook teaches that number.
+
+Caveat carried in the notebook: this is a **single-fold** split, so the numbers are
+one draw and are not comparable to the 5-fold averages on the ESC-50 leaderboard.
+Also note 2 source recordings are shared across the official fold boundary.
+
+### §9 validation status after merge 2
+
+Run on the merged branch:
+
+- **item 3, no forbidden frameworks** — clean across `sessions/`, `exercises/`,
+  `solutions/` and `requirements.txt`.
+- **item 4, index links** — 42 local links, **0 broken**.
+- **notebooks** — 36 notebooks, all valid `nbformat`. One stored cell error, in
+  `sessions/jax.ipynb`, intentional (see merge 1 above).
+- `ruff` clean; `sessions/` is 304 MB, largest notebook `mle.ipynb` at 4.6 MB.
+- **items 1, 2 and 5** — the three GPU notebooks were run end to end on the GPU box
+  with wall-clock times and measured numbers reported. Still unrun end to end on
+  this branch as a set: `mle`, `linear_regression`, `logistic_regression`,
+  `gamma_regression`, `softmax_regression`, `jax`, `FFN`, `K_FFN`, `K_CNN`,
+  `functional_keras`, `pretrained`, `CNN_timeseries`, `GAN`,
+  `robust-regression`. Those are CPU-feasible and are the remaining validation
+  work.
+
+**Remaining open items on the whole plan:** Phase 5 (nanochat `transformer_ts`) is
+postponed; Day 4's ~2 AH shortfall (correction 10) is undecided; `autoencoders.ipynb`
+has no `load_model` checkpoint path; and the GPU checkpoints for `transfer.ipynb`
+and `audio.ipynb` exist only on the GPU box, since weights are gitignored.
