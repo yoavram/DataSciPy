@@ -15,6 +15,6 @@ palmerpenguins
 corner
 librosa
 jax
-keras>=3
+keras>=3.15
 optax
 flowjax
