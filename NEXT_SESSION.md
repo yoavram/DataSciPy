@@ -1,57 +1,43 @@
-# Next session: Phase 3 — `sessions/audio.ipynb`
+# Next session: no notebook work is outstanding
 
-Branch `DL2026-gpu` (tracks `origin/DL2026-gpu`). Phases 2 and 7 are done and
-committed with outputs. Phase 3 is the last GPU-bound item in the handoff.
+Branch `DL2026-gpu`, pushed, tracks `origin/DL2026-gpu`. **Phases 2, 3 and 7 are
+all done and committed with outputs.** `DL2026_GPU_HANDOFF.md` has no remaining
+items — Phase 3 (`sessions/audio.ipynb`) was the last one.
 
-## Read, in this order
+## What is actually left
 
-1. `DL2026_PLAN.md` §4 — the spec for this notebook.
-2. `DL2026_PLAN.md` §0a "Phase 3 — survey before starting" — **four pre-existing
-   defects that §4 does not mention.** The first one changes what the
-   from-scratch baseline number means.
-3. `DL2026_GPU_HANDOFF.md` §3 and §5–7 — operational detail, boundaries,
-   deliverables, acceptance checks.
-4. `CLAUDE.md` — house style.
+**One decision, not more notebook work: Day 4 is 2 academic hours short**
+(`DL2026_PLAN.md` correction 10). Phases 7 and 8 did not close it — the flow
+session stays at 1.5 AH and the autoencoder leftovers are worth about 0.5 AH.
+This needs Yoav to choose what fills the gap, or to shorten the day.
 
-## Start here
+## Phase 3, for the record
 
-```bash
-.venv/bin/python download_data.py esc50   # check whether it is already present
-ls data/ESC-50-master
-```
+`sessions/audio.ipynb`: 68 cells, 2.8 MB, executes top to bottom from a clean
+kernel. Measured on the official ESC-50 folds (1-4 train, 5 validation),
+clip level, seeds 23 and 24:
 
-The four defects to fix while restructuring, from the survey:
+| protocol | top-1 | top-5 |
+|---|---|---|
+| EchoNet from scratch | 55.25-57.00% | 84.50-85.50% |
+| frozen `EfficientNetV2S` probe | 66.25-67.00% | 90.00-90.25% |
+| fine-tune | 75.00-75.50% | 93.00-93.50% |
 
-1. `validation_split=0.1` splits over ~1s overlapping *segments* cut from the
-   same 5s clip, so windows of one recording land on both sides and the reported
-   ~55% is optimistic. ESC-50 ships 5 official folds — split on `fold`.
-2. The history plot reads `history['acc']` / `history['val_acc']`; Keras 3 uses
-   `accuracy` / `val_accuracy`, so the cell raises `KeyError` as committed.
-3. Saves to `../data/keras_esc50_model.h5`; the branch idiom is `.keras`.
-4. Uses *test* terminology against the branch-wide sweep to *validation*.
+The probe **did** beat the from-scratch CNN, by about 10 points. Full write-up,
+including the three-way channel-construction null and the 34-point measurement
+of what a genuinely leaky split buys, is in `DL2026_PLAN.md` §0a
+"Phase 3 — what actually happened".
 
-Note `sessions/audio.ipynb` is 34 MB (embedded audio and figure outputs).
+**Three claims in `DL2026_GPU_HANDOFF.md` §4 did not survive execution** — the
+"fatal" librosa blocker, the leaking-split mechanism, and the "~55%" baseline it
+was to be compared against. See `DL2026_PLAN.md` corrections 20-22. The handoff
+itself was left unedited, per its §5.
 
-## Verified for you
+## Known gaps, unchanged by Phase 3
 
-- Environment: keras 3.15.1, jax 0.11.1, backend `jax`, `gpu`, 2x RTX A4000.
-  `.venv` exists at 3.12.13.
-- Disk was at 97% / 27 GB free before Phase 7; `data/maf` now holds 138 MB.
-  `data/CUB_200_2011/attributes/` (70 MB) is unused and can be deleted.
-- Notebooks execute cleanly with
-  `.venv/bin/jupyter nbconvert --to notebook --execute --inplace <nb>`.
-
-## Convention to follow
-
-Anything stated as a mechanism in a discussion cell must be measured, or
-labelled unmeasured. GPU runs here are minutes. See the unfreeze-depth table in
-`sessions/transfer.ipynb` and the model-comparison table in `sessions/flow.ipynb`
-for the pattern.
-
-## Not yet done, outside the GPU handoff
-
-- Day 4 is still 2 AH short (`DL2026_PLAN.md` correction 10). Phase 7 did not
-  change that: the flow session remains 1.5 AH.
-- `DL2026_GPU_HANDOFF.md` §5 says not to edit `DL2026_PLAN.md` from this branch.
-  That is now superseded — Yoav asked for the plan to be kept current here, and
-  Phases 2 and 7 are recorded in its progress log (see correction 18).
+- `requirements.txt` still lacks `librosa` and `corner` (correction 4). Not edited
+  here, per §5 of the handoff.
+- Checkpoints and caches are gitignored and live at
+  `~/Work/Teaching/DataSciPy/data/` on the GPU box. Disk there is at 98%; the
+  three `esc50_image_*.npy` caches (331 MB each) are regenerable and are the
+  first thing to delete.
