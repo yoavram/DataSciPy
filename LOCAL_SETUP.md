@@ -66,6 +66,8 @@ or `gpu`.
 **Why this matters:** Keras 3 defaults to the TensorFlow backend and this course
 does not install TensorFlow, so with the backend unset `import keras` fails with
 `ModuleNotFoundError: No module named 'tensorflow'` in every session notebook.
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md) covers this in full, including how to
+diagnose it.
 
 The repository ships a `.env` file containing `KERAS_BACKEND=jax`, which **VS Code
 loads automatically**. It does *not* help if you launch Jupyter from a terminal, as
