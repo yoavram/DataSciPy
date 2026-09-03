@@ -72,8 +72,10 @@ If a notebook must be self-contained regardless of environment, use the
 
 ## Environment and running notebooks
 
-`requirements.txt` is the **student-facing** file (VS Code + `venv`, per `README.md`);
-keep it complete and framework-clean. A local `.venv` already exists:
+`requirements.txt` is the **student-facing** file and the VS Code + `venv` route in
+`README.md` is the *only* supported install path; keep it complete and framework-clean.
+There is no `pixi.toml` on this branch — if you add one for local development it is a
+convenience and does not replace `requirements.txt`. A local `.venv` already exists:
 
 ```bash
 .venv/bin/python --version                       # 3.12

@@ -64,8 +64,12 @@ export KERAS_BACKEND=jax          # macOS / Linux
 $env:KERAS_BACKEND = "jax"        # Windows PowerShell
 ```
 
-[LOCAL_SETUP.md](LOCAL_SETUP.md) shows how to make it permanent for your user account
-instead, and covers the Miniforge + conda/mamba route in general.
+To make it permanent for your user account instead of setting it in every shell, create
+`~/.keras/keras.json` containing:
+
+```json
+{"floatx": "float32", "epsilon": 1e-07, "backend": "jax", "image_data_format": "channels_last"}
+```
 
 Also keep the notebooks **inside the course folder**. A notebook moved elsewhere loses
 the setting, and its relative paths to `../data/` stop resolving too.
