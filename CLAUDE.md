@@ -30,6 +30,12 @@ Consequences:
   Keras/JAX branch or vice versa.
 - `sessions/`, `exercises/`, and `solutions/` contents differ per branch — a link in
   `index.ipynb` that resolves on `master` may be dead here.
+- **Always `git fetch` and fast-forward the edition branch before starting work on a new
+  issue.** Local branches here go stale routinely, and branches are rebased rather than
+  merged, so the newest version of a notebook is often on the remote — or on a *different*
+  local branch that was rebased onto it. Check `git log --oneline -3 origin/<branch> -- <path>`
+  and diff against the branch you are on before editing, or you will silently revert
+  someone's work.
 
 ## Framework rules on this branch
 
