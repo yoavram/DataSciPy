@@ -6,18 +6,32 @@ objection is that frozen features give a head nothing to reshape, so the noteboo
 headroom claim might be an artifact of the setup. This script is the measurement behind
 the fine-tuning table in that notebook's discussion: the same trunk, the same protocol,
 but with the last stage of the backbone unfrozen. The answer is that unfreezing is worth
-about nine points of R@1 and six of mAP@R -- several times anything the head is worth
-here, which is the notebook's point rather than a qualification of it.
+about nine points of R@1 and seven of mAP@R -- several times anything the head is worth
+here, which is the notebook's point rather than a qualification of it. One seed per
+invocation; `--seed 23`, `24` and `25` are the three the notebook's table quotes:
+
+    seed 23  softmax  14 epochs  R@1 61.95%  mAP@R 23.02%
+    seed 24  softmax  12 epochs  R@1 61.92%  mAP@R 22.60%
+    seed 25  softmax  15 epochs  R@1 61.41%  mAP@R 22.46%
 
 It also runs the notebook's softmax baseline against the cosine head of its Exercise 3,
 because both are cheap once the fine-tuning is paid for. That comparison is the worked
-answer to the exercise at fine-tuning scale, not a claim the notebook makes: the heads
-swap places on R@1 while the cosine head keeps its mAP@R lead, on a single seed. Read it
-as a demonstration that the ordering of two heads is regime-dependent, which is the same
-lesson the headroom argument delivers by a different road.
+answer to the exercise at fine-tuning scale, not a claim the notebook makes -- and the
+answer is that it does not separate them. At seed 23 the cosine head (s=16, 6 epochs)
+scores R@1 60.77% and mAP@R 22.52% against the softmax head's 61.95% and 23.02%: behind
+on both, by less than the softmax arm's own spread across the three seeds above. Whatever
+the normalized head is worth once the backbone can move, this experiment cannot see it,
+which is the same verdict the notebook reaches on frozen features.
 
-Keras 3 on the JAX backend, and a GPU -- about twenty minutes on an RTX A4000 and
-roughly two orders of magnitude slower on a CPU. Run from the repository root, after
+Read that alongside the cap this script had to have raised. With MAX_EPOCHS at 12 the
+softmax arm selected 7 epochs at seed 23 and 12 -- its own cap -- at seed 24, and the
+head ordering came out the other way round: the cosine head ahead on mAP@R, behind on
+R@1. The schedule is defined over MAX_EPOCHS, so raising the cap to 30 changed every
+number and removed the ordering. A budget nobody questioned was producing the result.
+
+Keras 3 on the JAX backend, and a GPU -- about thirty-five minutes on an RTX A4000 for
+the full grid, a third of that for `--heads softmax`, and roughly two orders of magnitude
+slower on a CPU. Run from the repository root, after
 scripts/metric_learning_features.py has written the caches:
 
     KERAS_BACKEND=jax python scripts/metric_learning_finetune.py
@@ -46,6 +60,7 @@ budget across configurations.
 The remaining caveat is that each configuration is a single seed.
 """
 
+import argparse
 import os
 import time
 
@@ -66,7 +81,9 @@ IMG_SIZE = 224
 NSEEN = 100                 # species 1..100 are trained on, 101..200 are never seen
 NFIT = 80                   # species 1..80 fit, 81..100 choose the epoch budget
 EMBEDDING_DIM = 512
-MAX_EPOCHS = 12             # the search range for the per-configuration budget
+MAX_EPOCHS = 30             # the search range for the per-configuration budget. A run whose
+                            # best epoch equals this has found a wall, not a peak: seed 24
+                            # selected 12 of 12 under the previous cap.
 BATCH_SIZE = 32
 PEAK_LEARNING_RATE = 1e-4
 PROBE_EPOCHS = 20           # head warm-up on the cached frozen features (LP-FT)
@@ -77,6 +94,10 @@ FEATURES_CACHE = os.path.join(DATA, "cub_effnetv2s_embeddings.npy")
 # every other candidate is the cosine head of the notebook's Exercise 3, at that scale.
 SCALES = (8.0, 16.0)
 CANDIDATES = [(None, None)] + [(s, 0.0) for s in SCALES]
+
+# Which heads to search and report. The softmax arm alone is what the notebook's
+# discussion quotes, and it is a third of the runtime, so extra seeds are cheap.
+HEADS = ("softmax", "cosine")
 
 
 class CosineHead(keras.layers.Layer):
@@ -259,8 +280,9 @@ def main():
 
     # 1. search: every candidate is fitted on species 1-80 and scored, after every
     #    epoch, on the held-out species 81-100. Nothing here sees species 101-200.
+    candidates = CANDIDATES if "cosine" in HEADS else [(None, None)]
     searched = {}
-    for scale, margin in CANDIDATES:
+    for scale, margin in candidates:
         t0 = time.time()
         fit_probe = build_probe(scale, margin, NFIT, Z.shape[1])
         fit_probe.fit(x=Z[fit_idx], y=Y_fit, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
@@ -275,12 +297,11 @@ def main():
               f"at epoch {searched[(scale, margin)][1]:2d}  ({time.time() - t0:.0f}s)", flush=True)
         del search, fit_probe
 
-    # 2. the three heads we report: plain softmax, the best without a margin, the best with
-    chosen = [
-        ("softmax", (None, None)),
-        ("cosine head", max((k for k in searched if k[1] is not None),
-                            key=lambda k: searched[k][0])),
-    ]
+    # 2. what we report: plain softmax, and the best cosine head if it was searched
+    chosen = [("softmax", (None, None))]
+    if "cosine" in HEADS:
+        chosen.append(("cosine head", max((k for k in searched if k[1] is not None),
+                                          key=lambda k: searched[k][0])))
     print()
     for name, (scale, margin) in chosen:
         epochs = searched[(scale, margin)][1]
@@ -299,4 +320,14 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Fine-tune EfficientNetV2S on CUB and report open-set retrieval.")
+    parser.add_argument("--seed", type=int, default=SEED,
+                        help="random seed for every model built in this run (default 23)")
+    parser.add_argument("--heads", default=",".join(HEADS),
+                        help="comma-separated subset of softmax,cosine (default both)")
+    args = parser.parse_args()
+    SEED = args.seed
+    HEADS = tuple(h.strip() for h in args.heads.split(","))
+    print(f"seed {SEED}, heads {','.join(HEADS)}\n")
     main()

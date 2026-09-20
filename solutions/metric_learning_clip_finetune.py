@@ -37,6 +37,12 @@ points of R@1 on top of the best frozen-feature result, and the ordering of the 
 unchanged -- the cosine head stays ahead, by rather more than it was ahead by before, and
 here it keeps `R@1` as well. 34.40% mAP@R is the best number anywhere in the session.
 
+One caveat on the budgets before the totals are read: the softmax head selects epoch 18 out of a
+MAX_EPOCHS of 20. That is inside the range rather than at its edge, so it is not the wall the session
+warns about, but two epochs of headroom is thin -- treat 18 as a lower bound on what that head wants,
+and extend the range before quoting it anywhere else. The sibling script scripts/metric_learning_finetune.py
+had to have its own cap raised from 12 to 30 for exactly this reason, once a second seed was run.
+
 Two things are worth noticing beyond the totals. **The selected scale moves**: s=4 wins
 on frozen CLIP features and this search picks s=8, which is the whole reason the scale is
 searched inside each regime rather than carried across one. And **the budgets collapse**:
