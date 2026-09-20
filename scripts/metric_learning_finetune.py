@@ -28,8 +28,10 @@ for that many epochs and report on the 100 species nobody has touched. Sharing o
 budget across configurations is not fair to the margin -- it moves the optimum earlier
 and steepens the decay after it, so a budget chosen on one head penalizes the others.
 
-`scale` and `margin` are still carried over from the frozen-feature sweep and are *not*
-re-tuned here, which is the remaining caveat on the numbers this prints.
+`scale` and `margin` are re-selected here too, on the same held-out species, rather than
+carried over from the frozen-feature sweep -- the frozen sweep's own lesson is that the
+optimum in both moves when the regime does, so importing it would be the same mistake one
+level up. The remaining caveat is that this is a single seed per configuration.
 """
 
 import os
@@ -61,13 +63,10 @@ PROBE_EPOCHS = 20           # head warm-up on the cached frozen features (LP-FT)
 PROBE_LEARNING_RATE = 3e-4
 FEATURES_CACHE = os.path.join(DATA, "cub_effnetv2s_embeddings.npy")
 
-# (name, scale, margin); margin=None means an ordinary softmax head
-HEADS = [
-    ("softmax", None, None),
-    ("cosine softmax", 16.0, 0.0),
-    ("ArcFace", 16.0, 0.2),
-    ("ArcFace", 30.0, 0.5),
-]
+# The grid searched on the held-out species. `None` marks the plain softmax head.
+SCALES = (8.0, 16.0)
+MARGINS = (0.0, 0.2, 0.5)
+CANDIDATES = [(None, None)] + [(s, m) for s in SCALES for m in MARGINS]
 
 
 class ArcFaceHead(keras.layers.Layer):
@@ -237,6 +236,10 @@ class RetrievalMonitor(keras.callbacks.Callback):
         self.scores.append(retrieval_scores(embeddings, self.y)["mAP@R"])
 
 
+def describe(scale, margin):
+    return "softmax" if margin is None else f"s={scale:.0f}, m={margin:.1f}"
+
+
 def main():
     images, labels = load_split()
     train_idx = np.flatnonzero(labels < NSEEN)
@@ -263,40 +266,47 @@ def main():
           f"{len(train_idx):,} of species 1-{NSEEN} to refit, "
           f"{len(open_idx):,} of species {NSEEN + 1}-200 to report")
 
-    for name, scale, margin in HEADS:
-        label = name if margin is None else f"{name}, s={scale:.0f}, m={margin:.1f}"
+    # 1. search: every candidate is fitted on species 1-80 and scored, after every
+    #    epoch, on the held-out species 81-100. Nothing here sees species 101-200.
+    searched = {}
+    for scale, margin in CANDIDATES:
         t0 = time.time()
-
-        # 1. warm the head up on the cached frozen features (seconds), then unfreeze and
-        #    ask the held-out species how long this configuration should fine-tune for
         fit_probe = build_probe(scale, margin, NFIT, Z.shape[1])
         fit_probe.fit(x=Z[fit_idx], y=Y_fit, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
-
         monitor = RetrievalMonitor(X_tune, labels[tune_idx])
         search = build(scale, margin, NFIT, MAX_EPOCHS,
                        int(np.ceil(len(fit_idx) / BATCH_SIZE)), probe=fit_probe)
         search.fit(x=X_fit, y=Y_fit, batch_size=BATCH_SIZE, epochs=MAX_EPOCHS,
                    callbacks=[monitor], verbose=0)
-        epochs = int(np.argmax(monitor.scores)) + 1
+        searched[(scale, margin)] = (max(monitor.scores), int(np.argmax(monitor.scores)) + 1)
+        print(f"    search {describe(scale, margin):30s} "
+              f"tune mAP@R {searched[(scale, margin)][0]:.2%} "
+              f"at epoch {searched[(scale, margin)][1]:2d}  ({time.time() - t0:.0f}s)", flush=True)
         del search, fit_probe
 
-        # 2. same recipe on all 100 species for that long, then report on the unseen 100
+    # 2. the three heads we report: plain softmax, the best without a margin, the best with
+    chosen = [
+        ("softmax", (None, None)),
+        ("cosine softmax", max((k for k in searched if k[1] == 0.0),
+                               key=lambda k: searched[k][0])),
+        ("ArcFace", max((k for k in searched if k[1] and k[1] > 0),
+                        key=lambda k: searched[k][0])),
+    ]
+    print()
+    for name, (scale, margin) in chosen:
+        epochs = searched[(scale, margin)][1]
         probe = build_probe(scale, margin, NSEEN, Z.shape[1])
         probe.fit(x=Z[train_idx], y=Y_train, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
         model = build(scale, margin, NSEEN, epochs,
                       int(np.ceil(len(train_idx) / BATCH_SIZE)), probe=probe)
         history = model.fit(x=X_train, y=Y_train, batch_size=BATCH_SIZE,
                             epochs=epochs, verbose=0).history
-        del probe
         encoder = keras.Model(model.input, model.get_layer("embedding_bn").output)
         scores = retrieval_scores(encoder.predict(X_open, batch_size=64, verbose=0), y_open)
-        print(
-            f"{label:34s} {epochs:2d} epochs (tune mAP@R {max(monitor.scores):.2%})  "
-            f"{time.time() - t0:4.0f}s  train acc {history['accuracy'][-1]:.2%}  "
-            + "  ".join(f"{k} {v:.2%}" for k, v in scores.items()),
-            flush=True,
-        )
-        del model, encoder
+        print(f"{name:16s} {describe(scale, margin):22s} {epochs:2d} epochs  "
+              f"train acc {history['accuracy'][-1]:.2%}  "
+              + "  ".join(f"{k} {v:.2%}" for k, v in scores.items()), flush=True)
+        del model, encoder, probe
 
 
 if __name__ == "__main__":
