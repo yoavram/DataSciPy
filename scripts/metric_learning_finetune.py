@@ -1,4 +1,4 @@
-"""How much is letting the backbone move worth, next to anything a head buys?
+"""How much is letting the backbone move worth?
 
 sessions/metric_learning.ipynb trains on *frozen* EfficientNetV2S features throughout,
 and concludes that the backbone dominates everything done on top of it. The obvious
@@ -6,32 +6,26 @@ objection is that frozen features give a head nothing to reshape, so the noteboo
 headroom claim might be an artifact of the setup. This script is the measurement behind
 the fine-tuning table in that notebook's discussion: the same trunk, the same protocol,
 but with the last stage of the backbone unfrozen. The answer is that unfreezing is worth
-about nine points of R@1 and seven of mAP@R -- several times anything the head is worth
-here, which is the notebook's point rather than a qualification of it. One seed per
-invocation; `--seed 23`, `24` and `25` are the three the notebook's table quotes:
+about nine points of R@1 and seven of mAP@R, which is the notebook's point rather than a
+qualification of it. One seed per invocation; `--seed 23`, `24` and `25` are the three
+the notebook's table quotes:
 
-    seed 23  softmax  14 epochs  R@1 61.95%  mAP@R 23.02%
-    seed 24  softmax  12 epochs  R@1 61.92%  mAP@R 22.60%
-    seed 25  softmax  15 epochs  R@1 61.41%  mAP@R 22.46%
+    seed 23  14 epochs  R@1 61.95%  mAP@R 23.02%
+    seed 24  12 epochs  R@1 61.92%  mAP@R 22.60%
+    seed 25  15 epochs  R@1 61.41%  mAP@R 22.46%
 
-It also runs the notebook's softmax baseline against the cosine head of its Exercise 3,
-because both are cheap once the fine-tuning is paid for. That comparison is the worked
-answer to the exercise at fine-tuning scale, not a claim the notebook makes -- and the
-answer is that it does not separate them. At seed 23 the cosine head (s=16, 6 epochs)
-scores R@1 60.77% and mAP@R 22.52% against the softmax head's 61.95% and 23.02%: behind
-on both, by less than the softmax arm's own spread across the three seeds above. Whatever
-the normalized head is worth once the backbone can move, this experiment cannot see it,
-which is the same verdict the notebook reaches on frozen features.
+Re-running seed 23 reproduces the budget and R@1 exactly and lands at mAP@R 22.96%, so
+GPU nondeterminism is worth about 0.06 points here -- an order below the seed spread, and
+two orders below the effect being measured.
 
-Read that alongside the cap this script had to have raised. With MAX_EPOCHS at 12 the
-softmax arm selected 7 epochs at seed 23 and 12 -- its own cap -- at seed 24, and the
-head ordering came out the other way round: the cosine head ahead on mAP@R, behind on
-R@1. The schedule is defined over MAX_EPOCHS, so raising the cap to 30 changed every
-number and removed the ordering. A budget nobody questioned was producing the result.
+MAX_EPOCHS had to be raised from 12 to 30 to get those numbers. At the old cap the arm
+selected 7 epochs at seed 23 and 12 -- its own cap, a wall rather than a peak -- at seed
+24. The learning-rate schedule is defined over MAX_EPOCHS, so raising the cap changed
+every number in the table by about a point. A budget nobody questioned was setting the
+result, which is the trap the notebook is built around, here one level down.
 
-Keras 3 on the JAX backend, and a GPU -- about thirty-five minutes on an RTX A4000 for
-the full grid, a third of that for `--heads softmax`, and roughly two orders of magnitude
-slower on a CPU. Run from the repository root, after
+Keras 3 on the JAX backend, and a GPU -- about twelve minutes per seed on an RTX A4000,
+and roughly two orders of magnitude slower on a CPU. Run from the repository root, after
 scripts/metric_learning_features.py has written the caches:
 
     KERAS_BACKEND=jax python scripts/metric_learning_finetune.py
@@ -44,12 +38,12 @@ that, only `block6*` and `top_*` are trainable, every BatchNormalization layer k
 ImageNet statistics, and the learning rate warms up for one epoch and then decays on a
 cosine.
 
-The scale *and* the epoch budget are selected inside this regime rather than imported
-from a frozen-feature run: fit on species 1-80, score retrieval on the held-out species
-81-100 after every epoch, keep the peak, then refit on all 100 species for that long and
-report on the 100 species nobody has touched. Both optima move when the regime does --
-the budget here is a third of the frozen-feature one -- so carrying them over would be
-the same mistake the notebook warns about, one level up.
+The epoch budget is selected inside this regime rather than imported from a
+frozen-feature run: fit on species 1-80, score retrieval on the held-out species 81-100
+after every epoch, keep the peak, then refit on all 100 species for that long and report
+on the 100 species nobody has touched. The optimum moves when the regime does -- the
+budget here is about half the frozen-feature one -- so carrying it over would be the same
+mistake the notebook warns about, one level up.
 
 The cosine schedule is defined over MAX_EPOCHS in *both* phases rather than over the
 length of each run, so that epoch e sits at the same learning rate whether it is a search
@@ -57,7 +51,9 @@ epoch or a refit epoch. Sizing it to the run length instead would choose the bud
 one schedule and spend it under another, which is the same class of mistake as sharing a
 budget across configurations.
 
-The remaining caveat is that each configuration is a single seed.
+There is no head comparison here. The notebook reports one embedding model, the plain
+softmax baseline, and this script measures that model in one more regime; the normalized
+cosine head belongs to the notebook's exercises, not to its results.
 """
 
 import argparse
@@ -70,7 +66,6 @@ import numpy as np
 import pandas as pd
 
 import keras
-from keras import ops
 
 DATA = "data"
 DATASET_DIR = os.path.join(DATA, "CUB_200_2011")
@@ -89,36 +84,6 @@ PEAK_LEARNING_RATE = 1e-4
 PROBE_EPOCHS = 20           # head warm-up on the cached frozen features (LP-FT)
 PROBE_LEARNING_RATE = 3e-4
 FEATURES_CACHE = os.path.join(DATA, "cub_effnetv2s_embeddings.npy")
-
-# The grid searched on the held-out species. `None` marks the plain softmax head;
-# every other candidate is the cosine head of the notebook's Exercise 3, at that scale.
-SCALES = (8.0, 16.0)
-CANDIDATES = [(None, None)] + [(s, 0.0) for s in SCALES]
-
-# Which heads to search and report. The softmax arm alone is what the notebook's
-# discussion quotes, and it is a third of the runtime, so extra seeds are cheap.
-HEADS = ("softmax", "cosine")
-
-
-class CosineHead(keras.layers.Layer):
-    """Cosine similarity between an embedding and one learned proxy per class, scaled by `s`."""
-
-    def __init__(self, num_classes, scale=30.0, **kwargs):
-        super().__init__(**kwargs)
-        self.num_classes = num_classes
-        self.scale = scale
-
-    def build(self, input_shape):
-        self.proxies = self.add_weight(
-            shape=(input_shape[-1], self.num_classes),
-            initializer="glorot_uniform",
-            name="proxies",
-        )
-
-    def call(self, embeddings):
-        embeddings = embeddings / (ops.norm(embeddings, axis=-1, keepdims=True) + 1e-12)
-        proxies = self.proxies / (ops.norm(self.proxies, axis=0, keepdims=True) + 1e-12)
-        return self.scale * ops.matmul(embeddings, proxies)
 
 
 def normalize(V):
@@ -163,35 +128,23 @@ def load_split():
     return np.load(IMAGES_CACHE, mmap_mode="r"), labels
 
 
-def add_head(embedding, scale, margin, num_classes):
-    """The 512-d trunk is already built; put a softmax or a cosine head on it."""
-    if margin is None:
-        return keras.layers.Dense(num_classes, activation="softmax", name="species")(
-            embedding
-        ), "categorical_crossentropy"
-    return (
-        CosineHead(num_classes, scale=scale, name="cosine")(embedding),
-        keras.losses.CategoricalCrossentropy(from_logits=True),
-    )
-
-
-def build_probe(scale, margin, num_classes, feature_dim):
+def build_probe(num_classes, feature_dim):
     """Trunk plus head on the cached frozen features: the LP half of LP-FT."""
     keras.utils.set_random_seed(SEED)
     features = keras.Input(shape=(feature_dim,), name="features")
     embedding = keras.layers.Dense(EMBEDDING_DIM, use_bias=False, name="embedding")(features)
     embedding = keras.layers.BatchNormalization(name="embedding_bn")(embedding)
-    out, loss = add_head(embedding, scale, margin, num_classes)
+    out = keras.layers.Dense(num_classes, activation="softmax", name="species")(embedding)
     model = keras.Model(features, out)
     model.compile(
-        loss=loss,
+        loss="categorical_crossentropy",
         optimizer=keras.optimizers.Adam(PROBE_LEARNING_RATE),
         metrics=["accuracy"],
     )
     return model
 
 
-def build(scale, margin, num_classes, steps_per_epoch, probe=None):
+def build(num_classes, steps_per_epoch, probe=None):
     keras.utils.set_random_seed(SEED)
     backbone = keras.applications.EfficientNetV2S(
         weights="imagenet",
@@ -211,12 +164,12 @@ def build(scale, margin, num_classes, steps_per_epoch, probe=None):
     embedding = keras.layers.Dense(EMBEDDING_DIM, use_bias=False, name="embedding")(backbone.output)
     embedding = keras.layers.BatchNormalization(name="embedding_bn")(embedding)
 
-    out, loss = add_head(embedding, scale, margin, num_classes)
+    out = keras.layers.Dense(num_classes, activation="softmax", name="species")(embedding)
     model = keras.Model(backbone.input, out)
 
     # LP-FT: start the trunk and head where the frozen-feature probe finished
     if probe is not None:
-        for name in ("embedding", "embedding_bn", "species" if margin is None else "cosine"):
+        for name in ("embedding", "embedding_bn", "species"):
             model.get_layer(name).set_weights(probe.get_layer(name).get_weights())
     schedule = keras.optimizers.schedules.CosineDecay(
         initial_learning_rate=0.0,
@@ -229,7 +182,9 @@ def build(scale, margin, num_classes, steps_per_epoch, probe=None):
         alpha=0.0,
     )
     model.compile(
-        loss=loss, optimizer=keras.optimizers.Adam(schedule), metrics=["accuracy"]
+        loss="categorical_crossentropy",
+        optimizer=keras.optimizers.Adam(schedule),
+        metrics=["accuracy"],
     )
     return model
 
@@ -246,10 +201,6 @@ class RetrievalMonitor(keras.callbacks.Callback):
         encoder = keras.Model(self.model.input, self.model.get_layer("embedding_bn").output)
         embeddings = encoder.predict(self.images, batch_size=64, verbose=0)
         self.scores.append(retrieval_scores(embeddings, self.y)["mAP@R"])
-
-
-def describe(scale, margin):
-    return "softmax" if margin is None else f"s={scale:.0f}"
 
 
 def main():
@@ -278,45 +229,35 @@ def main():
           f"{len(train_idx):,} of species 1-{NSEEN} to refit, "
           f"{len(open_idx):,} of species {NSEEN + 1}-200 to report")
 
-    # 1. search: every candidate is fitted on species 1-80 and scored, after every
-    #    epoch, on the held-out species 81-100. Nothing here sees species 101-200.
-    candidates = CANDIDATES if "cosine" in HEADS else [(None, None)]
-    searched = {}
-    for scale, margin in candidates:
-        t0 = time.time()
-        fit_probe = build_probe(scale, margin, NFIT, Z.shape[1])
-        fit_probe.fit(x=Z[fit_idx], y=Y_fit, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
-        monitor = RetrievalMonitor(X_tune, labels[tune_idx])
-        search = build(scale, margin, NFIT,
-                       int(np.ceil(len(fit_idx) / BATCH_SIZE)), probe=fit_probe)
-        search.fit(x=X_fit, y=Y_fit, batch_size=BATCH_SIZE, epochs=MAX_EPOCHS,
-                   callbacks=[monitor], verbose=0)
-        searched[(scale, margin)] = (max(monitor.scores), int(np.argmax(monitor.scores)) + 1)
-        print(f"    search {describe(scale, margin):30s} "
-              f"tune mAP@R {searched[(scale, margin)][0]:.2%} "
-              f"at epoch {searched[(scale, margin)][1]:2d}  ({time.time() - t0:.0f}s)", flush=True)
-        del search, fit_probe
+    # 1. search: fit on species 1-80 and score, after every epoch, on the held-out
+    #    species 81-100. Nothing here sees species 101-200.
+    t0 = time.time()
+    fit_probe = build_probe(NFIT, Z.shape[1])
+    fit_probe.fit(x=Z[fit_idx], y=Y_fit, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
+    monitor = RetrievalMonitor(X_tune, labels[tune_idx])
+    search = build(NFIT, int(np.ceil(len(fit_idx) / BATCH_SIZE)), probe=fit_probe)
+    search.fit(x=X_fit, y=Y_fit, batch_size=BATCH_SIZE, epochs=MAX_EPOCHS,
+               callbacks=[monitor], verbose=0)
+    epochs = int(np.argmax(monitor.scores)) + 1
+    print(f"    search  tune mAP@R {max(monitor.scores):.2%} at epoch {epochs:2d} "
+          f"of {MAX_EPOCHS}  ({time.time() - t0:.0f}s)", flush=True)
+    if epochs == MAX_EPOCHS:
+        print("    WARNING: the budget is at the cap, which is a wall and not a peak; "
+              "raise MAX_EPOCHS and re-run every seed", flush=True)
+    del search, fit_probe
 
-    # 2. what we report: plain softmax, and the best cosine head if it was searched
-    chosen = [("softmax", (None, None))]
-    if "cosine" in HEADS:
-        chosen.append(("cosine head", max((k for k in searched if k[1] is not None),
-                                          key=lambda k: searched[k][0])))
+    # 2. refit on all 100 training species for that long, and report once
+    probe = build_probe(NSEEN, Z.shape[1])
+    probe.fit(x=Z[train_idx], y=Y_train, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
+    model = build(NSEEN, int(np.ceil(len(train_idx) / BATCH_SIZE)), probe=probe)
+    history = model.fit(x=X_train, y=Y_train, batch_size=BATCH_SIZE,
+                        epochs=epochs, verbose=0).history
+    encoder = keras.Model(model.input, model.get_layer("embedding_bn").output)
+    scores = retrieval_scores(encoder.predict(X_open, batch_size=64, verbose=0), y_open)
     print()
-    for name, (scale, margin) in chosen:
-        epochs = searched[(scale, margin)][1]
-        probe = build_probe(scale, margin, NSEEN, Z.shape[1])
-        probe.fit(x=Z[train_idx], y=Y_train, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
-        model = build(scale, margin, NSEEN,
-                      int(np.ceil(len(train_idx) / BATCH_SIZE)), probe=probe)
-        history = model.fit(x=X_train, y=Y_train, batch_size=BATCH_SIZE,
-                            epochs=epochs, verbose=0).history
-        encoder = keras.Model(model.input, model.get_layer("embedding_bn").output)
-        scores = retrieval_scores(encoder.predict(X_open, batch_size=64, verbose=0), y_open)
-        print(f"{name:16s} {describe(scale, margin):22s} {epochs:2d} epochs  "
-              f"train acc {history['accuracy'][-1]:.2%}  "
-              + "  ".join(f"{k} {v:.2%}" for k, v in scores.items()), flush=True)
-        del model, encoder, probe
+    print(f"LP-FT softmax  seed {SEED}  {epochs:2d} epochs  "
+          f"train acc {history['accuracy'][-1]:.2%}  "
+          + "  ".join(f"{k} {v:.2%}" for k, v in scores.items()), flush=True)
 
 
 if __name__ == "__main__":
@@ -324,10 +265,7 @@ if __name__ == "__main__":
         description="Fine-tune EfficientNetV2S on CUB and report open-set retrieval.")
     parser.add_argument("--seed", type=int, default=SEED,
                         help="random seed for every model built in this run (default 23)")
-    parser.add_argument("--heads", default=",".join(HEADS),
-                        help="comma-separated subset of softmax,cosine (default both)")
     args = parser.parse_args()
     SEED = args.seed
-    HEADS = tuple(h.strip() for h in args.heads.split(","))
-    print(f"seed {SEED}, heads {','.join(HEADS)}\n")
+    print(f"seed {SEED}\n")
     main()

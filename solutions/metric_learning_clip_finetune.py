@@ -30,12 +30,17 @@ What it prints, on an RTX A4000, in about twenty-five minutes::
     softmax      softmax   18 epochs   R@1 71.10%   mAP@R 31.37%
     cosine head  s=8        2 epochs   R@1 72.75%   mAP@R 34.40%
 
-against 69.2% / 29.7% for the softmax head on *frozen* CLIP features, which is the
-number the notebook reports, and 70.2% / 31.9% for the cosine head in the same frozen
-regime, measured here rather than in the notebook. So fine-tuning is worth two to three
-points of R@1 on top of the best frozen-feature result, and the ordering of the heads is
-unchanged -- the cosine head stays ahead, by rather more than it was ahead by before, and
-here it keeps `R@1` as well. 34.40% mAP@R is the best number anywhere in the session.
+The row that answers the exercise is the first one: against 69.2% / 29.7% for the same
+softmax head on *frozen* CLIP features -- the number the notebook reports -- fine-tuning
+the vision encoder is worth about two points of R@1 and 1.7 of mAP@R. That is the whole
+question the exercise asks.
+
+The second row is the Exercise 3 head carried along, since the exercise mentions it and
+it costs nothing once the fine-tuning is paid for. Report it as one run and no more: it
+is a single seed with no spread measured, and the session's verdict on head comparisons
+is that its experiments cannot resolve them -- on frozen EfficientNetV2S features, and
+again in the sibling fine-tune script, the difference sits inside the seed-to-seed range
+of a single arm. Do not read these two lines as a ranking.
 
 One caveat on the budgets before the totals are read: the softmax head selects epoch 18 out of a
 MAX_EPOCHS of 20. That is inside the range rather than at its edge, so it is not the wall the session
@@ -43,12 +48,11 @@ warns about, but two epochs of headroom is thin -- treat 18 as a lower bound on 
 and extend the range before quoting it anywhere else. The sibling script scripts/metric_learning_finetune.py
 had to have its own cap raised from 12 to 30 for exactly this reason, once a second seed was run.
 
-Two things are worth noticing beyond the totals. **The selected scale moves**: s=4 wins
-on frozen CLIP features and this search picks s=8, which is the whole reason the scale is
-searched inside each regime rather than carried across one. And **the budgets collapse**:
-the softmax head wants 18 epochs, the cosine head peaks after **two** and is past its
-best by the third. Whatever the normalization does to the optimization, it arrives almost
-immediately.
+One thing is worth noticing beyond the totals: **the budgets collapse**. The softmax head
+wants 18 epochs; the head of Exercise 3 peaks after **two** and is past its best by the
+third. Whatever the normalization does to the optimization, it arrives almost immediately
+-- which is also why the budget, and the scale with it, has to be searched inside each
+regime rather than carried across one.
 
 Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
 **no BatchNormalization** -- LayerNorm keeps no running statistics -- so the "freeze
