@@ -154,6 +154,24 @@ classes, so still legal — it helped, at every scale. If two arms of a comparis
 different values of some third thing, sharing one value between them is a confound, not a
 control. Sweep it, or select it per configuration.
 
+**Give the head and the body separate learning rates.** A metric-learning head owns
+learnable class proxies, and the standard protocols do not let them share an optimizer with
+the backbone: [Musgrave et al.](https://arxiv.org/abs/2003.08505) §3.1 trains the network at a
+constant `1e-6` and leaves the learning rate of "loss functions that include their own
+learnable weights (e.g. ArcFace)" as a separately tuned hyperparameter, and
+`pytorch-metric-learning` exposes it as a second `loss_optimizer`. Keras optimizers have no
+per-layer learning rate; the reparameterization `w = raw * mult` supplies one, because Adam
+moves `raw` by roughly `lr` per step whatever the gradient scale, so the effective rate on `w`
+is `lr * mult`.
+
+Follow the practice, but do not attribute results to it without checking. Measured on frozen
+EfficientNetV2S features, a 16x range of proxy learning rate moved mAP@R by 0.36 points —
+nothing — while the *trunk* learning rate set the epoch budget almost by itself, with
+`peak epoch x trunk lr` near-constant around `3.5e-3`. The budget is total distance travelled.
+That also means a difference in peak epoch between two heads trained at the same trunk rate is
+a property of the objective and not an artifact of the optimizer, which is worth knowing before
+reaching for a better schedule.
+
 The general discipline that follows: **choose hyperparameters on held-out classes, not on
 the classes you report**, and treat "how long to train" as a hyperparameter like any other.
 Where an effect is small, say what the seed-to-seed spread is and whether the effect
