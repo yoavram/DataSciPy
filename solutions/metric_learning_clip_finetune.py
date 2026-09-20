@@ -22,25 +22,17 @@ over between regimes:
   * the winner is refitted on all 100 training species and reported on the 100 species
     nobody has touched.
 
-What it prints, on an RTX A4000, in about an hour::
+VERIFICATION PENDING. An earlier version of this script also swept the angular margin,
+and ran end to end on an RTX A4000 producing R@1 71.03% / mAP@R 31.33% for the softmax
+head at 18 epochs and R@1 73.02% / mAP@R 34.90% for the cosine head at 2 epochs -- the
+best numbers anywhere in the session, against 69.3% / 29.7% and 70.6% / 32.0% for the
+same two heads on *frozen* CLIP features in the notebook. The margin has since been
+dropped from the session (see the notebook's Exercise 3), so this script now searches
+scales only, and those two rows have not yet been re-confirmed under the trimmed search.
+They should not change -- the selected configuration was already the best margin-free
+one -- but they are unconfirmed until someone re-runs this file and updates this note.
 
-    softmax          softmax        18 epochs   R@1 71.03%   mAP@R 31.33%
-    cosine softmax   s=8, m=0.0      2 epochs   R@1 73.02%   mAP@R 34.90%
-    ArcFace          s=8, m=0.2      2 epochs   R@1 72.60%   mAP@R 34.90%
-
-against 69.3% / 29.7%, 70.6% / 32.0% and 71.5% / 32.6% for the same three heads on
-*frozen* CLIP features in the notebook. So fine-tuning helps, by two to three points of
-R@1 -- and the two answers the notebook might have led you to expect are both wrong.
-It does not distort the features the way fine-tuning a weaker backbone on 5,864 images
-might have, and it does not rescue the angular margin either: the cosine head and
-ArcFace tie exactly on mAP@R, with the cosine head slightly ahead on R@1, which is the
-third regime in a row where the margin buys nothing.
-
-The budgets are the other thing to look at. The softmax head wants 18 epochs; every
-normalized head peaks after **two**, and is already past its best by the third. Whatever
-the normalization is doing to the optimization, it gets there almost immediately.
-
-Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
+Two differences from scripts/metric_learning_finetune.py are worth noting.Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
 **no BatchNormalization** -- LayerNorm keeps no running statistics -- so the "freeze
 batch-norm" rule that matters so much for EfficientNetV2 has nothing to act on here.
 And `vision_projection` does not normalize its output, while the cached features the
@@ -79,11 +71,10 @@ PROBE_EPOCHS = 20            # parameters and 5,864 images is a delicate combina
 PROBE_LEARNING_RATE = 3e-4
 
 SCALES = (4.0, 8.0)
-MARGINS = (0.0, 0.2, 0.5)
-CANDIDATES = [(None, None)] + [(s, m) for s in SCALES for m in MARGINS]
+CANDIDATES = [(None, None)] + [(s, 0.0) for s in SCALES]
 
 
-class ArcFaceHead(keras.layers.Layer):
+class CosineHead(keras.layers.Layer):
     """Cosine similarity between an embedding and one learned proxy per class, scaled by `s`."""
 
     def __init__(self, num_classes, scale=30.0, **kwargs):
@@ -102,26 +93,6 @@ class ArcFaceHead(keras.layers.Layer):
         embeddings = embeddings / (ops.norm(embeddings, axis=-1, keepdims=True) + 1e-12)
         proxies = self.proxies / (ops.norm(self.proxies, axis=0, keepdims=True) + 1e-12)
         return self.scale * ops.matmul(embeddings, proxies)
-
-
-class ArcFaceLoss(keras.losses.Loss):
-    """Categorical cross-entropy after adding an angular margin to the true class."""
-
-    def __init__(self, scale=30.0, margin=0.5, epsilon=1e-7, **kwargs):
-        super().__init__(**kwargs)
-        self.scale, self.margin, self.epsilon = scale, margin, epsilon
-
-    def call(self, y_true, y_pred):
-        cos = ops.clip(y_pred / self.scale, -1.0 + self.epsilon, 1.0 - self.epsilon)
-        sin = ops.sqrt(1.0 - ops.square(cos))
-        cos_with_margin = cos * math.cos(self.margin) - sin * math.sin(self.margin)
-        cos_with_margin = ops.where(
-            cos > math.cos(math.pi - self.margin),
-            cos_with_margin,
-            cos - self.margin * math.sin(math.pi - self.margin),
-        )
-        logits = self.scale * ops.where(y_true > 0.5, cos_with_margin, cos)
-        return ops.categorical_crossentropy(y_true, logits, from_logits=True)
 
 
 def normalize(V):
@@ -163,7 +134,7 @@ class RetrievalMonitor(keras.callbacks.Callback):
 
 
 def describe(scale, margin):
-    return "softmax" if margin is None else f"s={scale:.0f}, m={margin:.1f}"
+    return "softmax" if margin is None else f"s={scale:.0f}"
 
 
 def add_head(embedding, scale, margin, num_classes):
@@ -173,8 +144,8 @@ def add_head(embedding, scale, margin, num_classes):
             "categorical_crossentropy",
         )
     return (
-        ArcFaceHead(num_classes, scale=scale, name="arcface")(embedding),
-        ArcFaceLoss(scale=scale, margin=margin),
+        CosineHead(num_classes, scale=scale, name="cosine")(embedding),
+        keras.losses.CategoricalCrossentropy(from_logits=True),
     )
 
 
@@ -225,7 +196,7 @@ def build(scale, margin, num_classes, epochs, steps_per_epoch, probe=None):
     model = keras.Model(images, out)
 
     if probe is not None:
-        for name in ("embedding", "embedding_bn", "species" if margin is None else "arcface"):
+        for name in ("embedding", "embedding_bn", "species" if margin is None else "cosine"):
             model.get_layer(name).set_weights(probe.get_layer(name).get_weights())
 
     schedule = keras.optimizers.schedules.CosineDecay(
@@ -291,10 +262,8 @@ def main():
 
     chosen = [
         ("softmax", (None, None)),
-        ("cosine softmax", max((k for k in searched if k[1] == 0.0),
-                               key=lambda k: searched[k][0])),
-        ("ArcFace", max((k for k in searched if k[1] and k[1] > 0),
-                        key=lambda k: searched[k][0])),
+        ("cosine head", max((k for k in searched if k[1] is not None),
+                            key=lambda k: searched[k][0])),
     ]
     print()
     for name, (scale, margin) in chosen:
