@@ -1,9 +1,10 @@
-"""Fine-tune CLIP's vision encoder on CUB, and compare the same three heads.
+"""Fine-tune CLIP's vision encoder on CUB: the worked solution to Exercise 8.
 
 sessions/metric_learning.ipynb ends with CLIP winning twice: its image encoder is a
-better retrieval space than anything we trained on EfficientNetV2S, and heads trained
-on its features are better still. This script asks the remaining question -- what
-happens when the good backbone is also allowed to move.
+better retrieval space than anything we trained on EfficientNetV2S, and a head trained
+on its features is better still. This script asks the remaining question -- what happens
+when the good backbone is also allowed to move -- and carries the cosine head of
+Exercise 3 along for the ride, since it costs nothing once the fine-tuning is paid for.
 
 Keras 3 on the JAX backend, and a GPU. Run from the repository root, after
 scripts/metric_learning_features.py has written the caches:
@@ -29,20 +30,21 @@ What it prints, on an RTX A4000, in about twenty-five minutes::
     softmax      softmax   18 epochs   R@1 71.10%   mAP@R 31.37%
     cosine head  s=8        2 epochs   R@1 72.75%   mAP@R 34.40%
 
-against 69.0% / 29.6% and 70.2% / 31.9% for the same two heads on *frozen* CLIP features
-in the notebook. So fine-tuning is worth two to three points of R@1 on top of the best
-frozen-feature result, and the ordering of the heads is unchanged -- the cosine head
-stays ahead, by rather more than it was ahead by before, and here it keeps `R@1` as well.
-34.40% mAP@R is the best number anywhere in the session.
+against 69.2% / 29.7% for the softmax head on *frozen* CLIP features, which is the
+number the notebook reports, and 70.2% / 31.9% for the cosine head in the same frozen
+regime, measured here rather than in the notebook. So fine-tuning is worth two to three
+points of R@1 on top of the best frozen-feature result, and the ordering of the heads is
+unchanged -- the cosine head stays ahead, by rather more than it was ahead by before, and
+here it keeps `R@1` as well. 34.40% mAP@R is the best number anywhere in the session.
 
-Two things are worth noticing beyond the totals. **The selected scale moves**: the
-notebook picks s=4 on frozen CLIP features and this search picks s=8, which is the whole
-reason the search is re-run here rather than carried over. And **the budgets collapse**:
+Two things are worth noticing beyond the totals. **The selected scale moves**: s=4 wins
+on frozen CLIP features and this search picks s=8, which is the whole reason the scale is
+searched inside each regime rather than carried across one. And **the budgets collapse**:
 the softmax head wants 18 epochs, the cosine head peaks after **two** and is past its
 best by the third. Whatever the normalization does to the optimization, it arrives almost
 immediately.
 
-Two differences from scripts/metric_learning_finetune.py are worth noting.Two differences from scripts/metric_learning_finetune.py are worth noting.Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
+Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
 **no BatchNormalization** -- LayerNorm keeps no running statistics -- so the "freeze
 batch-norm" rule that matters so much for EfficientNetV2 has nothing to act on here.
 And `vision_projection` does not normalize its output, while the cached features the

@@ -1,10 +1,20 @@
-"""Does the choice of head survive once the backbone is allowed to move?
+"""How much is letting the backbone move worth, next to anything a head buys?
 
-sessions/metric_learning.ipynb trains its two heads on *frozen* EfficientNetV2S
-features. The obvious objection is that frozen features give a head nothing to reshape,
-so the comparison between them might be an artifact of the setup. This script is the
-measurement behind the fine-tuning table in that notebook's discussion: the same trunk
-and the same two heads, but with the last stage of the backbone unfrozen.
+sessions/metric_learning.ipynb trains on *frozen* EfficientNetV2S features throughout,
+and concludes that the backbone dominates everything done on top of it. The obvious
+objection is that frozen features give a head nothing to reshape, so the notebook's
+headroom claim might be an artifact of the setup. This script is the measurement behind
+the fine-tuning table in that notebook's discussion: the same trunk, the same protocol,
+but with the last stage of the backbone unfrozen. The answer is that unfreezing is worth
+about nine points of R@1 and six of mAP@R -- several times anything the head is worth
+here, which is the notebook's point rather than a qualification of it.
+
+It also runs the notebook's softmax baseline against the cosine head of its Exercise 3,
+because both are cheap once the fine-tuning is paid for. That comparison is the worked
+answer to the exercise at fine-tuning scale, not a claim the notebook makes: the heads
+swap places on R@1 while the cosine head keeps its mAP@R lead, on a single seed. Read it
+as a demonstration that the ordering of two heads is regime-dependent, which is the same
+lesson the headroom argument delivers by a different road.
 
 Keras 3 on the JAX backend, and a GPU -- about twenty minutes on an RTX A4000 and
 roughly two orders of magnitude slower on a CPU. Run from the repository root, after
@@ -20,12 +30,12 @@ that, only `block6*` and `top_*` are trainable, every BatchNormalization layer k
 ImageNet statistics, and the learning rate warms up for one epoch and then decays on a
 cosine.
 
-The scale *and* the epoch budget are re-selected here rather than carried over from the
-notebook's frozen-feature sweep: fit on species 1-80, score retrieval on the held-out
-species 81-100 after every epoch, keep the peak, then refit on all 100 species for that
-long and report on the 100 species nobody has touched. The frozen sweep's own lesson is
-that these optima move when the regime does, so importing them would be the same mistake
-one level up.
+The scale *and* the epoch budget are selected inside this regime rather than imported
+from a frozen-feature run: fit on species 1-80, score retrieval on the held-out species
+81-100 after every epoch, keep the peak, then refit on all 100 species for that long and
+report on the 100 species nobody has touched. Both optima move when the regime does --
+the budget here is a third of the frozen-feature one -- so carrying them over would be
+the same mistake the notebook warns about, one level up.
 
 The cosine schedule is defined over MAX_EPOCHS in *both* phases rather than over the
 length of each run, so that epoch e sits at the same learning rate whether it is a search
@@ -64,7 +74,7 @@ PROBE_LEARNING_RATE = 3e-4
 FEATURES_CACHE = os.path.join(DATA, "cub_effnetv2s_embeddings.npy")
 
 # The grid searched on the held-out species. `None` marks the plain softmax head;
-# every other candidate is the notebook's cosine head at that scale.
+# every other candidate is the cosine head of the notebook's Exercise 3, at that scale.
 SCALES = (8.0, 16.0)
 CANDIDATES = [(None, None)] + [(s, 0.0) for s in SCALES]
 
