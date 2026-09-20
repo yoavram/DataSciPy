@@ -41,6 +41,22 @@ This guide gets you ready to run the course Jupyter notebooks in VS Code using t
 
 VS Code will now create a virtual environment with course dependencies, which can take a few minutes.
 
+#### Install KerasHub
+
+One package cannot go in `requirements.txt`. The CLIP section of
+[Open-set metric learning](sessions/metric_learning.ipynb) needs
+[KerasHub](https://keras.io/keras_hub/), and `keras-hub` declares `tensorflow-text` as a
+dependency — which would install TensorFlow, which this course deliberately does not use.
+So install it *without* its dependency tree. Open a terminal in VS Code
+(**Terminal -> New Terminal**, with the `.venv` environment active) and run:
+
+```bash
+python -m pip install --no-deps keras-hub
+```
+
+Everything it actually needs is already in `requirements.txt`. Skip this if you are not
+doing that session; nothing else in the course imports `keras_hub`.
+
 #### Open the notebooks in VS Code
 
 - Open `index.ipynb` in VS Code.

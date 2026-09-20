@@ -74,6 +74,43 @@ To make it permanent for your user account instead of setting it in every shell,
 Also keep the notebooks **inside the course folder**. A notebook moved elsewhere loses
 the setting, and its relative paths to `../data/` stop resolving too.
 
+### `ModuleNotFoundError: No module named 'keras_hub'`
+
+Only [Open-set metric learning](sessions/metric_learning.ipynb) needs it, and it is not in
+`requirements.txt` on purpose: `keras-hub` declares `tensorflow-text` as a dependency, and
+installing that would install TensorFlow. Install it without its dependency tree instead:
+
+```bash
+python -m pip install --no-deps keras-hub
+```
+
+Its real dependencies — `regex`, `tokenizers` and `kagglehub` — are already in
+`requirements.txt`.
+
+### `AttributeError: 'NoneType' object has no attribute 'copy'` from a CLIP tokenizer
+
+This follows from the install above, and it is a bug in `keras-hub` rather than anything you
+did. `BytePairTokenizer.set_vocabulary_and_merges` calls a TensorFlow implementation first
+and swallows the `ImportError` when TensorFlow is absent — but that call is what assigns
+`self.vocabulary` and `self.merges`, and the pure-Python implementation that runs next reads
+those attributes back instead of its own arguments.
+
+`sessions/metric_learning.ipynb` patches it in a visible cell, and explains why. If you hit it
+somewhere else, the fix is to assign the two attributes before the fallback runs:
+
+```python
+from keras_hub.models import CLIPTokenizer
+
+_original = CLIPTokenizer._set_vocabulary_and_merges_tokenizers
+
+def _patched(self, vocabulary, merges):
+    self.vocabulary = vocabulary.copy()
+    self.merges = list(merges)
+    return _original(self, vocabulary, merges)
+
+CLIPTokenizer._set_vocabulary_and_merges_tokenizers = _patched
+```
+
 ### How Keras actually picks its backend
 
 For the curious, the order of precedence is:

@@ -43,7 +43,7 @@ ARCHIVES = {
         target="CUB_200_2011",
         keep=("CUB_200_2011",),
         size="1.1 GB download",
-        why="sessions/transfer.ipynb (Day 3)",
+        why="sessions/transfer.ipynb and sessions/metric_learning.ipynb (Day 3)",
     ),
     "sign-language": dict(
         url="https://github.com/yoavram/Sign-Language/raw/master/Dataset.zip",
@@ -107,6 +107,33 @@ def _efficientnetv2s():
     )
 
 
+def _clip():
+    try:
+        import keras_hub  # noqa: F401
+    except ImportError:
+        print("    skipped: keras-hub is not installed (see README.md); "
+              "only sessions/metric_learning.ipynb needs it")
+        return
+
+    # sessions/metric_learning.ipynb. keras-hub is installed without its dependency
+    # tree (see README.md), because it declares tensorflow-text; the CLIP backbone
+    # itself runs fine on JAX without TensorFlow, but the tokenizer needs a patch,
+    # which the notebook applies and explains.
+    from keras_hub.models import CLIPBackbone, CLIPTokenizer
+
+    original = CLIPTokenizer._set_vocabulary_and_merges_tokenizers
+
+    def patched(self, vocabulary, merges):
+        self.vocabulary = vocabulary.copy()
+        self.merges = list(merges)
+        return original(self, vocabulary, merges)
+
+    CLIPTokenizer._set_vocabulary_and_merges_tokenizers = patched
+
+    CLIPBackbone.from_preset("clip_vit_base_patch16")
+    CLIPTokenizer.from_preset("clip_vit_base_patch16")
+
+
 def _penguins():
     path = os.path.join(DATA, "penguins.csv")
     if os.path.exists(path):
@@ -125,6 +152,11 @@ KERAS_ITEMS = {
     "efficientnetv2s": (
         _efficientnetv2s,
         "EfficientNetV2S ImageNet weights, no top - sessions/transfer.ipynb",
+    ),
+    "clip": (
+        _clip,
+        "CLIP ViT-B/16 weights, ~570 MB - sessions/metric_learning.ipynb "
+        "(needs keras-hub, see README.md)",
     ),
     "penguins": (_penguins, "data/penguins.csv - sessions/gamma_regression.ipynb"),
 }
