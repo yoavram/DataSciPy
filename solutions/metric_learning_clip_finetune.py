@@ -22,17 +22,25 @@ over between regimes:
   * the winner is refitted on all 100 training species and reported on the 100 species
     nobody has touched.
 
-VERIFICATION PENDING. An earlier version of this script also swept the angular margin,
-and ran end to end on an RTX A4000 producing R@1 71.03% / mAP@R 31.33% for the softmax
-head at 18 epochs and R@1 73.02% / mAP@R 34.90% for the cosine head at 2 epochs -- the
-best numbers anywhere in the session, against 69.3% / 29.7% and 70.6% / 32.0% for the
-same two heads on *frozen* CLIP features in the notebook. The margin has since been
-dropped from the session (see the notebook's Exercise 3), so this script now searches
-scales only, and those two rows have not yet been re-confirmed under the trimmed search.
-They should not change -- the selected configuration was already the best margin-free
-one -- but they are unconfirmed until someone re-runs this file and updates this note.
+What it prints, on an RTX A4000, in about twenty-five minutes::
 
-Two differences from scripts/metric_learning_finetune.py are worth noting.Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
+    softmax      softmax   18 epochs   R@1 71.02%   mAP@R 31.33%
+    cosine head  s=8        2 epochs   R@1 73.02%   mAP@R 34.90%
+
+against 69.0% / 29.6% and 70.2% / 31.9% for the same two heads on *frozen* CLIP features
+in the notebook. So fine-tuning is worth two to three points of R@1 on top of the best
+frozen-feature result, and the ordering of the heads is unchanged -- the cosine head
+stays ahead, by rather more than it was ahead by before. 34.90% mAP@R is the best number
+anywhere in the session.
+
+Two things are worth noticing beyond the totals. **The selected scale moves**: the
+notebook picks s=4 on frozen CLIP features and this search picks s=8, which is the whole
+reason the search is re-run here rather than carried over. And **the budgets collapse**:
+the softmax head wants 18 epochs, the cosine head peaks after **two** and is past its
+best by the third. Whatever the normalization does to the optimization, it arrives almost
+immediately.
+
+Two differences from scripts/metric_learning_finetune.py are worth noting.Two differences from scripts/metric_learning_finetune.py are worth noting.Two differences from scripts/metric_learning_finetune.py are worth noting. A ViT has
 **no BatchNormalization** -- LayerNorm keeps no running statistics -- so the "freeze
 batch-norm" rule that matters so much for EfficientNetV2 has nothing to act on here.
 And `vision_projection` does not normalize its output, while the cached features the
