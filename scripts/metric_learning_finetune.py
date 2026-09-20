@@ -1,15 +1,14 @@
-"""Does the angular margin pay off once the backbone is allowed to move?
+"""Does the choice of head survive once the backbone is allowed to move?
 
-sessions/metric_learning.ipynb trains its heads on frozen EfficientNetV2S features,
-on frozen EfficientNetV2S features. The obvious objection is that frozen features give
-a head nothing to reshape. This script is the measurement behind the table in that
-notebook's discussion: the same trunk and the same two heads, but with the last stage
-of the backbone unfrozen.
+sessions/metric_learning.ipynb trains its two heads on *frozen* EfficientNetV2S
+features. The obvious objection is that frozen features give a head nothing to reshape,
+so the comparison between them might be an artifact of the setup. This script is the
+measurement behind the fine-tuning table in that notebook's discussion: the same trunk
+and the same two heads, but with the last stage of the backbone unfrozen.
 
-Keras 3 on the JAX backend, and a GPU -- each configuration is about two minutes on an
-RTX A4000 and roughly two orders of magnitude slower on a CPU. Run from the repository
-root, after sessions/transfer.ipynb or scripts/metric_learning_features.py has written
-data/cub_images_224.npy:
+Keras 3 on the JAX backend, and a GPU -- about twenty minutes on an RTX A4000 and
+roughly two orders of magnitude slower on a CPU. Run from the repository root, after
+scripts/metric_learning_features.py has written the caches:
 
     KERAS_BACKEND=jax python scripts/metric_learning_finetune.py
 
@@ -17,21 +16,21 @@ The recipe is the one sessions/transfer.ipynb arrives at, including **LP-FT**
 (Kumar et al. 2022): the head is trained first on the frozen features -- which is free,
 they are already cached -- and only then is the backbone unfrozen, so that the large
 gradients from a randomly initialized head never reach the pretrained weights. Beyond
-that: only `block6*` and `top_*` are trainable, every BatchNormalization layer keeps its
+that, only `block6*` and `top_*` are trainable, every BatchNormalization layer keeps its
 ImageNet statistics, and the learning rate warms up for one epoch and then decays on a
 cosine.
 
-Each configuration gets its *own* epoch budget, chosen the same way the notebook chooses
-everything else: fit on species 1-80, score retrieval on the held-out species 81-100
-after every epoch, and keep the epoch where that peaks. Then refit on all 100 species
-for that many epochs and report on the 100 species nobody has touched. Sharing one fixed
-budget across configurations is not fair to the margin -- it moves the optimum earlier
-and steepens the decay after it, so a budget chosen on one head penalizes the others.
+The scale *and* the epoch budget are re-selected here rather than carried over from the
+notebook's frozen-feature sweep: fit on species 1-80, score retrieval on the held-out
+species 81-100 after every epoch, keep the peak, then refit on all 100 species for that
+long and report on the 100 species nobody has touched. The frozen sweep's own lesson is
+that these optima move when the regime does, so importing them would be the same mistake
+one level up.
 
-`scale` and `margin` are re-selected here too, on the same held-out species, rather than
-carried over from the frozen-feature sweep -- the frozen sweep's own lesson is that the
-optimum in both moves when the regime does, so importing it would be the same mistake one
-level up. The remaining caveat is that this is a single seed per configuration.
+Two caveats. Each configuration is a single seed. And `decay_steps` is tied to the epoch
+count, so the search phase runs a MAX_EPOCHS-long cosine while the refit runs one sized
+to the selected budget -- the epoch is chosen under a slightly different schedule than
+the one it is then used with.
 """
 
 import os
