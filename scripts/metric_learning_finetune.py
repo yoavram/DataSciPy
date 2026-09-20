@@ -1,10 +1,10 @@
 """Does the angular margin pay off once the backbone is allowed to move?
 
 sessions/metric_learning.ipynb trains its heads on frozen EfficientNetV2S features,
-where ArcFace's margin turns out to be worth nothing. The obvious objection is that
-frozen features give the margin nothing to reshape. This script is the measurement
-behind the table in that notebook's discussion: the same trunk and the same heads,
-but with the last stage of the backbone unfrozen.
+on frozen EfficientNetV2S features. The obvious objection is that frozen features give
+a head nothing to reshape. This script is the measurement behind the table in that
+notebook's discussion: the same trunk and the same two heads, but with the last stage
+of the backbone unfrozen.
 
 Keras 3 on the JAX backend, and a GPU -- each configuration is about two minutes on an
 RTX A4000 and roughly two orders of magnitude slower on a CPU. Run from the repository
@@ -39,8 +39,6 @@ import time
 
 os.environ.setdefault("KERAS_BACKEND", "jax")
 
-import math
-
 import numpy as np
 import pandas as pd
 
@@ -63,13 +61,13 @@ PROBE_EPOCHS = 20           # head warm-up on the cached frozen features (LP-FT)
 PROBE_LEARNING_RATE = 3e-4
 FEATURES_CACHE = os.path.join(DATA, "cub_effnetv2s_embeddings.npy")
 
-# The grid searched on the held-out species. `None` marks the plain softmax head.
+# The grid searched on the held-out species. `None` marks the plain softmax head;
+# every other candidate is the notebook's cosine head at that scale.
 SCALES = (8.0, 16.0)
-MARGINS = (0.0, 0.2, 0.5)
-CANDIDATES = [(None, None)] + [(s, m) for s in SCALES for m in MARGINS]
+CANDIDATES = [(None, None)] + [(s, 0.0) for s in SCALES]
 
 
-class ArcFaceHead(keras.layers.Layer):
+class CosineHead(keras.layers.Layer):
     """Cosine similarity between an embedding and one learned proxy per class, scaled by `s`."""
 
     def __init__(self, num_classes, scale=30.0, **kwargs):
@@ -88,29 +86,6 @@ class ArcFaceHead(keras.layers.Layer):
         embeddings = embeddings / (ops.norm(embeddings, axis=-1, keepdims=True) + 1e-12)
         proxies = self.proxies / (ops.norm(self.proxies, axis=0, keepdims=True) + 1e-12)
         return self.scale * ops.matmul(embeddings, proxies)
-
-
-class ArcFaceLoss(keras.losses.Loss):
-    """Categorical cross-entropy after adding an angular margin to the true class."""
-
-    def __init__(self, scale=30.0, margin=0.5, epsilon=1e-7, **kwargs):
-        super().__init__(**kwargs)
-        self.scale = scale
-        self.margin = margin
-        self.epsilon = epsilon
-
-    def call(self, y_true, y_pred):
-        # clipping before the sqrt: its derivative is infinite at cos = +-1
-        cos = ops.clip(y_pred / self.scale, -1.0 + self.epsilon, 1.0 - self.epsilon)
-        sin = ops.sqrt(1.0 - ops.square(cos))
-        cos_with_margin = cos * math.cos(self.margin) - sin * math.sin(self.margin)
-        cos_with_margin = ops.where(
-            cos > math.cos(math.pi - self.margin),
-            cos_with_margin,
-            cos - self.margin * math.sin(math.pi - self.margin),
-        )
-        logits = self.scale * ops.where(y_true > 0.5, cos_with_margin, cos)
-        return ops.categorical_crossentropy(y_true, logits, from_logits=True)
 
 
 def normalize(V):
@@ -156,13 +131,14 @@ def load_split():
 
 
 def add_head(embedding, scale, margin, num_classes):
-    """The 512-d trunk is already built; put a softmax or an ArcFace head on it."""
+    """The 512-d trunk is already built; put a softmax or a cosine head on it."""
     if margin is None:
         return keras.layers.Dense(num_classes, activation="softmax", name="species")(
             embedding
         ), "categorical_crossentropy"
-    return ArcFaceHead(num_classes, scale=scale, name="arcface")(embedding), ArcFaceLoss(
-        scale=scale, margin=margin
+    return (
+        CosineHead(num_classes, scale=scale, name="cosine")(embedding),
+        keras.losses.CategoricalCrossentropy(from_logits=True),
     )
 
 
@@ -207,7 +183,7 @@ def build(scale, margin, num_classes, epochs, steps_per_epoch, probe=None):
 
     # LP-FT: start the trunk and head where the frozen-feature probe finished
     if probe is not None:
-        for name in ("embedding", "embedding_bn", "species" if margin is None else "arcface"):
+        for name in ("embedding", "embedding_bn", "species" if margin is None else "cosine"):
             model.get_layer(name).set_weights(probe.get_layer(name).get_weights())
     schedule = keras.optimizers.schedules.CosineDecay(
         initial_learning_rate=0.0,
@@ -237,7 +213,7 @@ class RetrievalMonitor(keras.callbacks.Callback):
 
 
 def describe(scale, margin):
-    return "softmax" if margin is None else f"s={scale:.0f}, m={margin:.1f}"
+    return "softmax" if margin is None else f"s={scale:.0f}"
 
 
 def main():
@@ -287,10 +263,8 @@ def main():
     # 2. the three heads we report: plain softmax, the best without a margin, the best with
     chosen = [
         ("softmax", (None, None)),
-        ("cosine softmax", max((k for k in searched if k[1] == 0.0),
-                               key=lambda k: searched[k][0])),
-        ("ArcFace", max((k for k in searched if k[1] and k[1] > 0),
-                        key=lambda k: searched[k][0])),
+        ("cosine head", max((k for k in searched if k[1] is not None),
+                            key=lambda k: searched[k][0])),
     ]
     print()
     for name, (scale, margin) in chosen:
