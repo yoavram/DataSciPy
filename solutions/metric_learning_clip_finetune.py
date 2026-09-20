@@ -17,21 +17,23 @@ over between regimes:
     and only then is the backbone unfrozen;
   * only the last `UNFROZEN_BLOCKS` transformer blocks, the final layer norm and the
     projection are trainable;
-  * `scale`, `margin` and the epoch budget are all chosen on species 81-100, held out
-    from a fit on species 1-80;
+  * the scale and the epoch budget are chosen on species 81-100, held out from a fit on
+    species 1-80;
+  * the cosine schedule is defined over MAX_EPOCHS in both phases, so that epoch e sits at
+    the same learning rate in the search and in the refit;
   * the winner is refitted on all 100 training species and reported on the 100 species
     nobody has touched.
 
 What it prints, on an RTX A4000, in about twenty-five minutes::
 
-    softmax      softmax   18 epochs   R@1 71.02%   mAP@R 31.33%
-    cosine head  s=8        2 epochs   R@1 73.02%   mAP@R 34.90%
+    softmax      softmax   18 epochs   R@1 71.10%   mAP@R 31.37%
+    cosine head  s=8        2 epochs   R@1 72.75%   mAP@R 34.40%
 
 against 69.0% / 29.6% and 70.2% / 31.9% for the same two heads on *frozen* CLIP features
 in the notebook. So fine-tuning is worth two to three points of R@1 on top of the best
 frozen-feature result, and the ordering of the heads is unchanged -- the cosine head
-stays ahead, by rather more than it was ahead by before. 34.90% mAP@R is the best number
-anywhere in the session.
+stays ahead, by rather more than it was ahead by before, and here it keeps `R@1` as well.
+34.40% mAP@R is the best number anywhere in the session.
 
 Two things are worth noticing beyond the totals. **The selected scale moves**: the
 notebook picks s=4 on frozen CLIP features and this search picks s=8, which is the whole
@@ -171,7 +173,7 @@ def build_probe(scale, margin, num_classes, feature_dim):
     return model
 
 
-def build(scale, margin, num_classes, epochs, steps_per_epoch, probe=None):
+def build(scale, margin, num_classes, steps_per_epoch, probe=None):
     from keras_hub.layers import CLIPImageConverter
     from keras_hub.models import CLIPBackbone
 
@@ -209,7 +211,10 @@ def build(scale, margin, num_classes, epochs, steps_per_epoch, probe=None):
 
     schedule = keras.optimizers.schedules.CosineDecay(
         initial_learning_rate=0.0,
-        decay_steps=steps_per_epoch * epochs,
+        # over MAX_EPOCHS, not over the run length: the search and the refit must
+        # put epoch e at the same learning rate, or the budget is chosen under one
+        # schedule and spent under another
+        decay_steps=steps_per_epoch * MAX_EPOCHS,
         warmup_target=PEAK_LEARNING_RATE,
         warmup_steps=steps_per_epoch,
         alpha=0.0,
@@ -259,7 +264,7 @@ def main():
         fit_probe = build_probe(scale, margin, NFIT, Z.shape[1])
         fit_probe.fit(x=Z[fit_idx], y=Y_fit, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
         monitor = RetrievalMonitor(X_tune, labels[tune_idx])
-        search = build(scale, margin, NFIT, MAX_EPOCHS,
+        search = build(scale, margin, NFIT,
                        int(np.ceil(len(fit_idx) / BATCH_SIZE)), probe=fit_probe)
         search.fit(x=X_fit, y=Y_fit, batch_size=BATCH_SIZE, epochs=MAX_EPOCHS,
                    callbacks=[monitor], verbose=0)
@@ -278,7 +283,7 @@ def main():
         epochs = searched[(scale, margin)][1]
         probe = build_probe(scale, margin, NSEEN, Z.shape[1])
         probe.fit(x=Z[train_idx], y=Y_train, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
-        model = build(scale, margin, NSEEN, epochs,
+        model = build(scale, margin, NSEEN,
                       int(np.ceil(len(train_idx) / BATCH_SIZE)), probe=probe)
         history = model.fit(x=X_train, y=Y_train, batch_size=BATCH_SIZE,
                             epochs=epochs, verbose=0).history

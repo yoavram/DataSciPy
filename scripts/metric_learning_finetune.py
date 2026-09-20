@@ -27,10 +27,13 @@ long and report on the 100 species nobody has touched. The frozen sweep's own le
 that these optima move when the regime does, so importing them would be the same mistake
 one level up.
 
-Two caveats. Each configuration is a single seed. And `decay_steps` is tied to the epoch
-count, so the search phase runs a MAX_EPOCHS-long cosine while the refit runs one sized
-to the selected budget -- the epoch is chosen under a slightly different schedule than
-the one it is then used with.
+The cosine schedule is defined over MAX_EPOCHS in *both* phases rather than over the
+length of each run, so that epoch e sits at the same learning rate whether it is a search
+epoch or a refit epoch. Sizing it to the run length instead would choose the budget under
+one schedule and spend it under another, which is the same class of mistake as sharing a
+budget across configurations.
+
+The remaining caveat is that each configuration is a single seed.
 """
 
 import os
@@ -157,7 +160,7 @@ def build_probe(scale, margin, num_classes, feature_dim):
     return model
 
 
-def build(scale, margin, num_classes, epochs, steps_per_epoch, probe=None):
+def build(scale, margin, num_classes, steps_per_epoch, probe=None):
     keras.utils.set_random_seed(SEED)
     backbone = keras.applications.EfficientNetV2S(
         weights="imagenet",
@@ -186,7 +189,10 @@ def build(scale, margin, num_classes, epochs, steps_per_epoch, probe=None):
             model.get_layer(name).set_weights(probe.get_layer(name).get_weights())
     schedule = keras.optimizers.schedules.CosineDecay(
         initial_learning_rate=0.0,
-        decay_steps=steps_per_epoch * epochs,
+        # over MAX_EPOCHS, not over the run length: the search and the refit must
+        # put epoch e at the same learning rate, or the budget is chosen under one
+        # schedule and spent under another
+        decay_steps=steps_per_epoch * MAX_EPOCHS,
         warmup_target=PEAK_LEARNING_RATE,
         warmup_steps=steps_per_epoch,       # one epoch of warmup
         alpha=0.0,
@@ -249,7 +255,7 @@ def main():
         fit_probe = build_probe(scale, margin, NFIT, Z.shape[1])
         fit_probe.fit(x=Z[fit_idx], y=Y_fit, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
         monitor = RetrievalMonitor(X_tune, labels[tune_idx])
-        search = build(scale, margin, NFIT, MAX_EPOCHS,
+        search = build(scale, margin, NFIT,
                        int(np.ceil(len(fit_idx) / BATCH_SIZE)), probe=fit_probe)
         search.fit(x=X_fit, y=Y_fit, batch_size=BATCH_SIZE, epochs=MAX_EPOCHS,
                    callbacks=[monitor], verbose=0)
@@ -270,7 +276,7 @@ def main():
         epochs = searched[(scale, margin)][1]
         probe = build_probe(scale, margin, NSEEN, Z.shape[1])
         probe.fit(x=Z[train_idx], y=Y_train, batch_size=128, epochs=PROBE_EPOCHS, verbose=0)
-        model = build(scale, margin, NSEEN, epochs,
+        model = build(scale, margin, NSEEN,
                       int(np.ceil(len(train_idx) / BATCH_SIZE)), probe=probe)
         history = model.fit(x=X_train, y=Y_train, batch_size=BATCH_SIZE,
                             epochs=epochs, verbose=0).history
