@@ -125,6 +125,41 @@ deserialize them (see issue #6).
 - Use *validation* terminology, not *test*, in Keras notebooks (`X_validation`,
   `val_accuracy`) — this was a deliberate sweep, see commit `3c4d5e8`.
 
+## Measured claims in notebooks
+
+Several sessions report numbers a reader is expected to draw a conclusion from. Those
+numbers are the teaching material, so the narrative is written **after** the measurement,
+never before it — if the result contradicts what the notebook was going to say, the
+notebook changes. `sessions/metric_learning.ipynb` is the worked example: it was drafted
+three times because the measurements kept overturning the draft, and its discussion says
+so explicitly.
+
+Two failure modes have each cost a full rewrite of that session. Both are easy to commit
+while being scrupulous about everything else, and both look like results rather than
+mistakes:
+
+**A search that selects a value at the edge of its range has not found an optimum.** It
+has hit a wall, and the number it reports is an artifact of where you stopped looking.
+This happened twice in one session — a scale sweep over `s ∈ {16, 30, 64}` reported "best
+`s = 16`" when 16 was its own smallest value (extending to `s = 2` moved the optimum to 8
+and reversed a conclusion about the angular margin), and an epoch search capped at 10
+selected epoch 10. Extend the grid until the winner has neighbours on both sides, or say
+in the notebook that you did not. The same applies to `MAX_EPOCHS` in any
+`EarlyStopping`-style search: a run whose best epoch equals its cap needs a larger cap.
+
+**A hyperparameter held fixed across a comparison is measuring itself.** An epoch budget
+chosen on the no-margin model and then applied to every ArcFace configuration made the
+angular margin look monotonically harmful; given its own budget — still chosen on held-out
+classes, so still legal — it helped, at every scale. If two arms of a comparison want
+different values of some third thing, sharing one value between them is a confound, not a
+control. Sweep it, or select it per configuration.
+
+The general discipline that follows: **choose hyperparameters on held-out classes, not on
+the classes you report**, and treat "how long to train" as a hyperparameter like any other.
+Where an effect is small, say what the seed-to-seed spread is and whether the effect
+survives it. An honest null result is a fine thing for a notebook to teach; a null result
+that is really an artifact of the protocol is not.
+
 ## Exercises and solutions
 
 Every assignment in `exercises/` has a matching same-named notebook in `solutions/`,
