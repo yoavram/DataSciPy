@@ -241,8 +241,18 @@ def main():
         missing = int(np.isnan(scores).sum())
         if missing:
             raise SystemExit(f"{missing} pairs are still missing from {len(parts)} shards")
+        # Keypoint counts travel with the scores: the exercise's normalization needs
+        # them, and shipping them here means the multi-gigabyte feature cache never
+        # has to leave this machine.
+        counts = {}
+        for row in np.unique(np.concatenate([query_rows, shortlist.ravel()])):
+            counts[int(row)] = int(np.load(
+                os.path.join(feature_cache_dir(data), f"{row}.npz"))["keypoints"].shape[1])
+        keypoints = np.vectorize(counts.get)
         np.savez(out, query_rows=query_rows, shortlist=shortlist,
                  embedding_similarity=similarity.astype("float32"), lightglue_score=scores,
+                 keypoints_query=keypoints(query_rows).astype("int32"),
+                 keypoints_shortlist=keypoints(shortlist).astype("int32"),
                  arm=args.arm, head=args.head, seed=args.seed)
         print(f"    wrote {out} from {len(parts)} shards")
         return

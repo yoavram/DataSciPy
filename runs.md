@@ -289,6 +289,24 @@ five spread over time.
 Built by a generator in the session scratchpad (`build_reid_nb.py` + `part_*.py` +
 `emit.py`) so the whole notebook can be regenerated and re-executed.
 
-Artifacts the notebook loads total ~352 MB; only the MiewID embeddings and LightGlue
-scores (66 MB) cannot be rebuilt in the course env. `download_data.py reid-arrays`
-prints rebuild instructions until `REID_ARRAYS_URL` is set to a hosted tarball.
+### Shipping
+
+Artifacts the notebook and solution load total ~650 MB. The published bundle is
+**188 MB**, holding only what cannot be rebuilt in reasonable time:
+
+| in the bundle | size | why it has to ship |
+|---|---|---|
+| `turtle_miewid_embeddings.npy` | 65 MB | PyTorch |
+| `turtle_lightglue_topk.npz` | 0.8 MB | PyTorch (now also carries ALIKED keypoint counts, so the 2.8 GB feature cache never ships) |
+| `turtle_finetune_*_e250_*_embeddings.npy` | 93 MB | ~5 GPU-hours |
+| `turtle_effnetv2s_embeddings.npy`, `turtle_clip_vitb16_images.npy` | 54 MB | 30–45 min on a laptop CPU |
+| `turtle_arcface_sweep.csv`, histories, catalogue | 1 MB | 468 fits |
+
+**Not** in the bundle: the 30 probe embeddings (~460 MB). `download_data.py reid-arrays`
+fetches the tarball and then runs `scripts/reid_arcface.py --selected` (plus the two
+sampler variants), which rebuilds them in **9 min 26 s** on a CPU. Verified clean-room:
+all 30 come back **bitwise identical** to the originals, and the executed notebook is
+unchanged.
+
+`REID_ARRAYS_URL` is `None` until the tarball is hosted; until then the command prints
+rebuild instructions instead of failing.

@@ -134,32 +134,48 @@ def _clip():
     CLIPTokenizer.from_preset("clip_vit_base_patch16")
 
 
-# The cached arrays for sessions/reid.ipynb. Two of them -- the MiewID embeddings and
-# the ALIKED+LightGlue match scores -- are produced by PyTorch models this course does
-# not install, so they cannot be regenerated from the repository alone. Set this to the
-# release URL once the tarball is hosted; see scripts/reid_precompute_torch.py.
+# The cached arrays for sessions/reid.ipynb. This holds only what cannot be rebuilt
+# from the repository in reasonable time: the MiewID embeddings and ALIKED+LightGlue
+# scores (PyTorch, which this course does not install), the fine-tuned backbone's
+# embeddings (about 5 GPU-hours), the margin sweep's results (hours of CPU), and the
+# two frozen-feature arrays. The 30 probe embeddings the notebook also loads are NOT
+# in it -- scripts/reid_arcface.py rebuilds them bit-for-bit in about ten minutes on a
+# CPU, which is a better trade than another 460 MB of download.
 REID_ARRAYS_URL = None
 
 
 def _reid_arrays():
-    """Precomputed arrays for sessions/reid.ipynb (~352 MB)."""
+    """Cached arrays for sessions/reid.ipynb (~188 MB), then the probe rebuild."""
+    import subprocess
+
     marker = os.path.join(DATA, "turtle_miewid_embeddings.npy")
-    if os.path.exists(marker):
+    if not os.path.exists(marker):
+        if REID_ARRAYS_URL is None:
+            print("    no download URL is configured yet.")
+            print("    Rebuild what you can locally instead:")
+            print("        python download_data.py turtles")
+            print("        python scripts/reid_data.py")
+            print("    The MiewID embeddings and LightGlue scores need PyTorch; see")
+            print("    scripts/reid_precompute_torch.py.")
+            return
+        archive = os.path.join(DATA, "reid_arrays.tar.gz")
+        if not os.path.exists(archive):
+            download_file(REID_ARRAYS_URL, archive)
+        extract(archive, DATA)
+    else:
         print(f"    already present: {marker}")
+
+    # The probe embeddings: cheap to recompute, expensive to ship.
+    if os.path.exists(os.path.join(DATA, "turtle_arcface_time_plain_selected_s44_embeddings.npy")):
+        print("    probe embeddings already present")
         return
-    if REID_ARRAYS_URL is None:
-        print("    no download URL is configured yet.")
-        print("    Everything except the MiewID embeddings and the LightGlue scores can")
-        print("    be rebuilt locally:")
-        print("        python download_data.py turtles")
-        print("        python scripts/reid_data.py")
-        print("        python scripts/reid_sweep.py && python scripts/reid_arcface.py --selected")
-        print("    The other two need PyTorch; see scripts/reid_precompute_torch.py.")
+    if not os.path.exists(os.path.join(DATA, "turtle_effnetv2s_embeddings.npy")):
+        print("    skipped the probe rebuild: run scripts/reid_data.py first")
         return
-    archive = os.path.join(DATA, "reid_arrays.tar.gz")
-    if not os.path.exists(archive):
-        download_file(REID_ARRAYS_URL, archive)
-    extract(archive, DATA)
+    print("    rebuilding the probe embeddings (about 10 minutes on a CPU)")
+    script = os.path.join("scripts", "reid_arcface.py")
+    for extra in ([], ["--head", "plain", "--sampler", "2"], ["--head", "plain", "--sampler", "4"]):
+        subprocess.run([sys.executable, script, "--selected"] + extra, check=True)
 
 
 def _turtles():
@@ -217,7 +233,7 @@ KERAS_ITEMS = {
     ),
     "reid-arrays": (
         _reid_arrays,
-        "cached embeddings and match scores, ~352 MB - sessions/reid.ipynb",
+        "cached arrays, ~188 MB + a 10 min rebuild - sessions/reid.ipynb",
     ),
     "penguins": (_penguins, "data/penguins.csv - sessions/gamma_regression.ipynb"),
 }
