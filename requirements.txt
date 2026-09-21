@@ -1,0 +1,36 @@
+jupyter
+ipykernel
+ipywidgets
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+pillow
+imageio
+scikit-learn
+scikit-image
+statsmodels
+palmerpenguins
+corner
+librosa
+
+# sessions/reid.ipynb: the SeaTurtleIDHeads catalogue, the download, and the
+# splitting protocols its paper defines. Pure Python -- no deep-learning framework
+# is pulled in -- but the download itself goes through Kaggle, so a Kaggle API
+# token is needed once (see README.md and `python download_data.py --list`).
+wildlife-datasets
+jax
+keras>=3.15
+optax
+flowjax
+
+# KerasHub, for the CLIP section of sessions/metric_learning.ipynb.
+# keras-hub itself is NOT listed here: it declares tensorflow-text as a dependency,
+# which pulls in TensorFlow, and this course deliberately does not install it.
+# Install it separately, without its dependency tree (see README.md):
+#     python -m pip install --no-deps keras-hub
+# These are the dependencies it actually needs on that path.
+regex
+tokenizers
+kagglehub
