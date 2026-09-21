@@ -91,6 +91,12 @@ def _fashion_mnist():
     keras.datasets.fashion_mnist.load_data()
 
 
+def _cifar10():
+    import keras
+
+    keras.datasets.cifar10.load_data()
+
+
 def _resnet50():
     import keras
 
@@ -220,6 +226,7 @@ def _penguins():
 KERAS_ITEMS = {
     "mnist": (_mnist, "MNIST digits (Keras cache) - Days 2, 3"),
     "fashion-mnist": (_fashion_mnist, "Fashion-MNIST (Keras cache) - Day 3 homework"),
+    "cifar10": (_cifar10, "CIFAR-10 (Keras cache) - sessions/augmentation.ipynb (Day 3)"),
     "resnet50": (_resnet50, "ResNet50 ImageNet weights - sessions/pretrained.ipynb"),
     "efficientnetv2s": (
         _efficientnetv2s,
