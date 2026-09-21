@@ -141,7 +141,10 @@ def _clip():
 # two frozen-feature arrays. The 30 probe embeddings the notebook also loads are NOT
 # in it -- scripts/reid_arcface.py rebuilds them bit-for-bit in about ten minutes on a
 # CPU, which is a better trade than another 460 MB of download.
-REID_ARRAYS_URL = None
+REID_ARRAYS_URL = (
+    "https://github.com/yoavram/DataSciPy/releases/download/"
+    "reid-arrays-v1/reid_arrays.tar.gz"
+)
 
 
 def _reid_arrays():
