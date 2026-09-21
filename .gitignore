@@ -48,3 +48,4 @@ data/acgan
 data/gan
 mnist_*.png
 tmp.*
+data/UCIActivity
