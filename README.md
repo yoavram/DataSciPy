@@ -57,6 +57,21 @@ python -m pip install --no-deps keras-hub
 Everything it actually needs is already in `requirements.txt`. Skip this if you are not
 doing that session; nothing else in the course imports `keras_hub`.
 
+#### Set up a Kaggle token (only for the re-identification session)
+
+[Animal re-identification](sessions/reid.ipynb) uses the SeaTurtleIDHeads archive, which is
+distributed through Kaggle. `wildlife-datasets` is already in `requirements.txt`, but the
+download needs an API token:
+
+1. Sign in at <https://www.kaggle.com>, open **Settings**, and choose **Create New Token**.
+   This downloads `kaggle.json`.
+2. Move it to `~/.kaggle/kaggle.json` (on Windows, `C:\Users\<you>\.kaggle\kaggle.json`).
+3. Visit <https://www.kaggle.com/datasets/wildlifedatasets/seaturtleidheads> once and accept
+   the dataset's terms.
+
+Then fetch it with `python download_data.py turtles` (about 425 MB). Skip this if you are not
+doing that session.
+
 #### Open the notebooks in VS Code
 
 - Open `index.ipynb` in VS Code.

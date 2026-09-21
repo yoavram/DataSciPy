@@ -134,6 +134,59 @@ def _clip():
     CLIPTokenizer.from_preset("clip_vit_base_patch16")
 
 
+# The cached arrays for sessions/reid.ipynb. Two of them -- the MiewID embeddings and
+# the ALIKED+LightGlue match scores -- are produced by PyTorch models this course does
+# not install, so they cannot be regenerated from the repository alone. Set this to the
+# release URL once the tarball is hosted; see scripts/reid_precompute_torch.py.
+REID_ARRAYS_URL = None
+
+
+def _reid_arrays():
+    """Precomputed arrays for sessions/reid.ipynb (~352 MB)."""
+    marker = os.path.join(DATA, "turtle_miewid_embeddings.npy")
+    if os.path.exists(marker):
+        print(f"    already present: {marker}")
+        return
+    if REID_ARRAYS_URL is None:
+        print("    no download URL is configured yet.")
+        print("    Everything except the MiewID embeddings and the LightGlue scores can")
+        print("    be rebuilt locally:")
+        print("        python download_data.py turtles")
+        print("        python scripts/reid_data.py")
+        print("        python scripts/reid_sweep.py && python scripts/reid_arcface.py --selected")
+        print("    The other two need PyTorch; see scripts/reid_precompute_torch.py.")
+        return
+    archive = os.path.join(DATA, "reid_arrays.tar.gz")
+    if not os.path.exists(archive):
+        download_file(REID_ARRAYS_URL, archive)
+    extract(archive, DATA)
+
+
+def _turtles():
+    """SeaTurtleIDHeads, via wildlife-datasets.
+
+    The download goes through Kaggle, which needs an API token: create one at
+    https://www.kaggle.com/settings ("Create New Token"), save the file as
+    ~/.kaggle/kaggle.json, and accept the dataset's terms once at
+    https://www.kaggle.com/datasets/wildlifedatasets/seaturtleidheads
+    """
+    target = os.path.join(DATA, "SeaTurtleIDHeads")
+    if os.path.isdir(target):
+        print(f"    already present: {target}")
+        return
+    try:
+        from wildlife_datasets.datasets import SeaTurtleIDHeads
+    except ImportError:
+        print("    skipped: wildlife-datasets is not installed (see requirements.txt)")
+        return
+    try:
+        SeaTurtleIDHeads.get_data(target)
+    except Exception as error:
+        print(f"    failed: {error}")
+        print("    a Kaggle API token is needed; see the docstring of _turtles() "
+              "in this file")
+
+
 def _penguins():
     path = os.path.join(DATA, "penguins.csv")
     if os.path.exists(path):
@@ -157,6 +210,14 @@ KERAS_ITEMS = {
         _clip,
         "CLIP ViT-B/16 weights, ~570 MB - sessions/metric_learning.ipynb "
         "(needs keras-hub, see README.md)",
+    ),
+    "turtles": (
+        _turtles,
+        "SeaTurtleIDHeads, ~425 MB, needs a Kaggle token - sessions/reid.ipynb",
+    ),
+    "reid-arrays": (
+        _reid_arrays,
+        "cached embeddings and match scores, ~352 MB - sessions/reid.ipynb",
     ),
     "penguins": (_penguins, "data/penguins.csv - sessions/gamma_regression.ipynb"),
 }

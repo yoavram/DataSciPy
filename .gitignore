@@ -25,6 +25,14 @@ __pycache__/
 *.pb
 *.parquet
 
+# sessions/reid.ipynb: the SeaTurtleIDHeads download, the ALIKED feature cache, and
+# the catalogue and sweep results built by scripts/reid_data.py and reid_sweep.py.
+# The .npy/.npz arrays are already covered by extension above.
+data/SeaTurtleIDHeads
+data/turtle_aliked
+data/turtle_catalogue.csv
+data/turtle_arcface_sweep*.csv
+
 # downloaded datasets (fetched by download_data.py)
 data/CUB_200_2011
 data/Dataset

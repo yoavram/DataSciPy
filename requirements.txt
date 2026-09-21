@@ -14,6 +14,12 @@ statsmodels
 palmerpenguins
 corner
 librosa
+
+# sessions/reid.ipynb: the SeaTurtleIDHeads catalogue, the download, and the
+# splitting protocols its paper defines. Pure Python -- no deep-learning framework
+# is pulled in -- but the download itself goes through Kaggle, so a Kaggle API
+# token is needed once (see README.md and `python download_data.py --list`).
+wildlife-datasets
 jax
 keras>=3.15
 optax
