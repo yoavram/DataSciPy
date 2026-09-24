@@ -187,6 +187,50 @@ def _reid_arrays():
         subprocess.run([sys.executable, script, "--selected"] + extra, check=True)
 
 
+# The raw MONSTER UCIActivity arrays for sessions/CNN_timeseries.ipynb. Small enough
+# that the notebook also fetches them inline on first run; having them here lets a
+# student pre-load everything before class, and keeps the file list in one place.
+UCI_ACTIVITY_URL = "https://huggingface.co/datasets/monster-monash/UCIActivity/resolve/main"
+UCI_ACTIVITY_FILES = (
+    ["UCIActivity_X.npy", "UCIActivity_y.npy", "UCIActivity_subject_id.csv"]
+    + [f"test_indices_fold_{fold}.txt" for fold in range(5)]
+)
+
+# The trained checkpoints that notebook loads. The sweep *results* are committed to the
+# repository as CSV -- they are small tables, and regenerating them is 45 models -- so
+# this holds only the six .keras files and two history pickles, which together are a
+# few MB and about ten minutes of GPU to rebuild.
+CNN_TIMESERIES_URL = None
+
+
+def _cnn_timeseries():
+    """MONSTER UCIActivity (~47 MB) and the cached checkpoints for CNN_timeseries."""
+    target = os.path.join(DATA, "UCIActivity")
+    os.makedirs(target, exist_ok=True)
+    for filename in UCI_ACTIVITY_FILES:
+        path = os.path.join(target, filename)
+        if os.path.exists(path):
+            print(f"    already present: {filename}")
+        else:
+            download_file(f"{UCI_ACTIVITY_URL}/{filename}", path)
+
+    marker = os.path.join(DATA, "forda_cnn_k3.keras")
+    if os.path.exists(marker):
+        print(f"    checkpoints already present: {marker}")
+        return
+    if CNN_TIMESERIES_URL is None:
+        print("    no checkpoint download is configured yet.")
+        print("    Rebuild them instead by uncommenting the training cells in")
+        print("    sessions/CNN_timeseries.ipynb -- about 10 minutes on a GPU.")
+        print("    The kernel sweeps do NOT need rebuilding: their results are")
+        print("    committed as data/forda_kernel_sweep.csv and uci_kernel_sweep.csv.")
+        return
+    archive = os.path.join(DATA, "cnn_timeseries_checkpoints.tar.gz")
+    if not os.path.exists(archive):
+        download_file(CNN_TIMESERIES_URL, archive)
+    extract(archive, DATA)
+
+
 def _turtles():
     """SeaTurtleIDHeads, via wildlife-datasets.
 
@@ -244,6 +288,11 @@ KERAS_ITEMS = {
     "reid-arrays": (
         _reid_arrays,
         "cached arrays, ~188 MB + a 10 min rebuild - sessions/reid.ipynb",
+    ),
+    "cnn-timeseries": (
+        _cnn_timeseries,
+        "MONSTER UCIActivity, ~47 MB, plus cached checkpoints - "
+        "sessions/CNN_timeseries.ipynb (Day 3 bonus)",
     ),
     "penguins": (_penguins, "data/penguins.csv - sessions/gamma_regression.ipynb"),
 }
