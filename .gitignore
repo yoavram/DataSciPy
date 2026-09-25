@@ -37,6 +37,11 @@ data/turtle_arcface_sweep*.csv
 # `python download_data.py poker`. Not covered by any extension rule above.
 data/poker-hand-*.data
 
+# ...but that session's checkpoints ARE committed, against the *.p rule above.
+# They are ~350 KB in total, they are what its load cells read, and without them
+# the notebook cannot be run by anyone who has not first retrained it.
+!data/poker_*.p
+
 # downloaded datasets (fetched by download_data.py)
 data/CUB_200_2011
 data/Dataset
