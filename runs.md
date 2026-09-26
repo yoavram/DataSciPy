@@ -1,11 +1,16 @@
-# Runs log — `sessions/reid.ipynb` (issue #12)
+# Runs log
 
-Every computation done for the re-identification session: what was run, why, what came
-back, and whether it is still load-bearing. Working notes, not teaching material —
-untracked, and safe to delete once the session is finished.
+Every computation done for the sessions below: what was run, why, what came back, and
+whether it is still load-bearing. Working notes, not teaching material — safe to delete
+once a session is finished.
 
-Branch `metric-learning`. Machine: 2x RTX A4000 (16 GB), 96 CPU cores.
-Course env `.venv` (Keras 3.15.1 / JAX). PyTorch work runs in
+Machine: 2x RTX A4000 (16 GB), 96 CPU cores. Course env `.venv` (Keras 3.15.1 / JAX).
+
+---
+
+# `sessions/reid.ipynb` (issue #12)
+
+Branch `metric-learning`. PyTorch work runs in
 `~/Work/Research/AnimalCLEF26/.pixi/envs/default`, never in the course env.
 
 ---
@@ -310,3 +315,118 @@ unchanged.
 
 `REID_ARRAYS_URL` is `None` until the tarball is hosted; until then the command prints
 rebuild instructions instead of failing.
+
+---
+
+# `sessions/CNN_timeseries.ipynb` (issue #14)
+
+Branch `cnn-ts-revision`. All timings on one A4000.
+
+## 0. Phase 0 spike — before any prose
+
+The issue asked to replace FordA with MONSTER UCIActivity and build the notebook around
+receptive field. The spike inverted that plan, so it is worth recording what was
+measured and in what order.
+
+- **Data facts.** `UCIActivity_X.npy` is `(10299, 9, 128)` — channels first, needs a
+  transpose. Channels verified rather than assumed: `total_acc - body_acc` has a
+  within-window SD of 0.005–0.009, i.e. it is a constant, so channels 6–8 are 0–2 plus
+  the gravity vector. Class counts match the original UCI release exactly, which pins
+  the label mapping. Fold files are 0-based and subject-complete.
+- **Not per-window normalized.** `total_acc_x` carries a per-window mean of ~1.0 g for
+  the upright classes and 0.07 for lying.
+- **Cadence.** FFT peak 1.95 / 1.56 / 1.95 Hz for walking / upstairs / downstairs. This
+  is the *step* rate; a stride is two steps. The first draft called it a stride and was
+  wrong — caught in review.
+- **Baselines, fold 0.** majority 0.192; softmax regression on the flat 1152-dim input
+  0.660; 18 features 0.854; 1-NN 0.885; CNN 0.98+.
+- **The finding that changed the plan.** A `kernel_size=1` trunk plus global average
+  pooling is provably permutation-invariant, and it scores 0.98 on UCIActivity. A
+  `kernel_size=3` CNN *trained on time-shuffled* windows still scores 0.977. 81 quantile
+  features and a logistic regression get 0.933. UCIActivity barely needs temporal order.
+- **FordA, by contrast.** Every order-invariant model sits at the 0.516 base rate;
+  `kernel_size=3` reaches 0.97. FordA can carry the receptive-field argument and
+  UCIActivity cannot.
+
+Decision (with Yoav): **FordA as Part 1, UCIActivity as Part 2**, contrast as the spine.
+
+## 1. Sections killed by measurement
+
+- **GAP vs `Flatten` head.** Measured on both datasets with circular shifts, 3 seeds.
+  Largest drop 0.25 points against a 3-point seed spread. On FordA the first attempt
+  looked decisive (`Flatten` at 0.5159 = chance) but that was an optimisation failure,
+  not an architectural one — with a `MaxPooling1D(4)` before the head it trains fine and
+  tracks GAP. Cut, with the reason stated in the Discussion: these windows have no
+  canonical alignment, so position carries no information.
+- **Per-window z-normalization.** Kept — it costs 3.6 points and the whole cost falls on
+  the static postures (sitting 1.000 → 0.848), because it deletes the gravity offset.
+
+## 2. Final artifacts
+
+`_train_tmp.ipynb` (the notebook with training cells live), ~55 min:
+
+- FordA kernel sweep, 9 kernels x 3 seeds at a 600-epoch cap — the long pole. Cap raised
+  from 200 after the first run hit it without early stopping ever firing.
+- UCI kernel sweep, 6 kernels x 3 seeds, plus the sitting/standing error decomposition.
+- `forda_cnn_k{1,3}`, `uci_cnn_k1`, `uci_cnn`, `uci_cnn_znorm`, and the five folds.
+
+Sweep and fold *results* are committed as CSV (`forda_kernel_sweep.csv`,
+`uci_kernel_sweep.csv`, `uci_folds.csv`) — small tables, 45 models to regenerate. The
+`.keras` checkpoints are gitignored; `download_data.py cnn-timeseries` fetches the raw
+UCIActivity arrays and will fetch the checkpoints once `CNN_TIMESERIES_URL` is set, the
+same state `reid-arrays` is in.
+
+## 3. Results that the notebook argues from
+
+**FordA** — order-invariant baselines: mean+SD 0.490, quantiles 0.550, against a 0.516
+base rate. 1-NN Euclidean 0.661. `kernel_size=1` 0.547; `kernel_size=3` 0.968;
+time-shuffled, the k=3 model collapses to 0.516 and the k=1 model's predictions are
+bitwise unchanged.
+
+Kernel sweep, development / validation, 3 seeds, seed SD 0.0028:
+
+| RF | 1 | 4 | 7 | 10 | 13 | 16 | 19 | 25 | 43 |
+|---|---|---|---|---|---|---|---|---|---|
+| dev | .540 | .951 | **.975** | .928 | .945 | .949 | .944 | .946 | .948 |
+| val | .545 | .937 | **.968** | .911 | .923 | .933 | .937 | .934 | .942 |
+
+The peak at RF 7 is sharp and the drop to RF 10 is ~15 seed-SDs, reproduced by all three
+seeds. Not explained; the notebook says so rather than guessing. The denser grid
+(4, 6, 7) was added specifically to check whether the dip was a grid artifact. It is not.
+
+**UCIActivity fold 0** — quantiles 0.933, `kernel_size=1` 0.980, selected model 0.990.
+The sweep looks flat on validation (~1 point across a 60x range of receptive field), and
+splitting the errors shows why:
+
+| RF | 1 | 7 | 13 | 25 | 43 | 61 |
+|---|---|---|---|---|---|---|
+| sitting/standing errors | 21.0 | 23.0 | 29.0 | 29.3 | 41.3 | 20.0 |
+| every other error | **17.3** | **0.7** | 6.0 | 13.0 | 5.3 | 1.3 |
+
+RF 1 makes 14–22 non-postural errors across seeds, RF 7 makes 0–1 — non-overlapping. The
+postural pair never responds. The flat total is a large effect plus a hard floor, and
+the notebook now says so.
+
+Noise floor, in errors out of 2401: whole sweep spans ~25; two runs of one configuration
+differ by ~11; within-kernel seed spread ~11.
+
+**Five folds** at the selected kernel: 0.985 / 0.926 / 0.969 / 0.889 / 0.925, mean 0.939.
+Fold 0 is the easiest. The folds are overlapping resamples, not a partition — ten of the
+thirty participants are never held out and participant 30 is held out by four folds of
+five — so that SD is not the SD of five independent estimates. Measured in the notebook.
+
+## 4. Review findings worth remembering
+
+Three review passes. The ones that changed results rather than wording:
+
+- Prose contradicted the notebook's own output on the selected kernel. Rewritten.
+- `development` was `max(val_accuracy)` over epochs while `validation` came from the
+  restored-best-`val_loss` weights — a bias that grows with epoch count, on the statistic
+  used for selection. Both now measured on the restored weights; sweeps rerun.
+- FordA used `validation_split=0.2`, which takes the *last* 20% unshuffled. Replaced with
+  an explicit random split, which also made an unbiased development score possible.
+- `BEST_KERNEL` is chosen on fold-0 development participants who appear in other folds'
+  validation sets. Disclosed in the notebook rather than fixed with nested selection —
+  this is teaching material, and per-fold selection is six times the training for an
+  effect smaller than the fold spread.
+- The split assertion only compared a prefix; replaced with a row-hash membership test.
