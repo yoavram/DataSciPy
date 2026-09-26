@@ -46,6 +46,7 @@ data/poker-hand-*.data
 data/CUB_200_2011
 data/Dataset
 data/ESC-50-master
+data/UCIActivity
 data/FashionMNIST
 data/maf
 data/MNIST
