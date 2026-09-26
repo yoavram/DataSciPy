@@ -21,13 +21,13 @@ librosa
 # token is needed once (see README.md and `python download_data.py --list`).
 wildlife-datasets
 jax
-# Upper bound is deliberate, not conservatism: every checkpoint in the course
-# release was written by Keras 3.15.1, and a whole-model `.keras` file can only
-# be reopened by a Keras whose `from_config` accepts the config keys the writing
-# version emitted (issue #6). 3.15.1 is currently the latest release, so this
-# pins to what is already tested. Lift the ceiling only after the checkpoints
-# are re-cut, or the break lands mid-class.
-keras>=3.15,<3.16
+# Pinned exactly, on purpose. Every trained checkpoint the course ships was
+# written by Keras 3.15.1, and a whole-model `.keras` file can only be reopened
+# by a Keras whose `from_config` still accepts the config keys the writing
+# version emitted (issue #6). The pin is the policy, not a stopgap: the
+# checkpoints and this line are retrained and moved together, periodically.
+# Do not relax it to a range -- 3.15.0 did not write these files either.
+keras==3.15.1
 optax
 flowjax
 

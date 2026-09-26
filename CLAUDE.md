@@ -101,9 +101,39 @@ a checkpoint and then reload it, and the training cell is sometimes commented ou
 both paths present when editing.
 
 `requirements.txt` was audited against every import in every notebook and is complete;
-if you add an import, add it there too. Note `keras>=3.15` is a floor, not a preference:
-the checkpoints in `data/` are written by Keras 3.15.1 and earlier Keras cannot
-deserialize them (see issue #6).
+if you add an import, add it there too.
+
+### The Keras pin is a policy, not a stopgap
+
+`requirements.txt` says `keras==3.15.1` — an exact pin, not a floor and not a range.
+**Do not relax it, and do not "fix" it to a range as tidying.**
+
+Every checkpoint the course ships was written by Keras 3.15.1. A whole-model `.keras`
+file stores a serialized *config* of every layer, so reopening it needs a Keras whose
+`from_config` still accepts the keys the writing version emitted. That ties each
+checkpoint to its writing version — 32 `load_model` calls across 23 notebooks depend on
+it, and `sessions/calibration.ipynb` has no training code at all, so it cannot recover
+by retraining. This has already broken the branch twice (issue #6).
+
+The alternative — saving weights only, and rebuilding the architecture from notebook
+code — was considered and **deliberately rejected**. These checkpoints are a
+time-saving cache for a specific delivery, not long-lived artifacts; the migration
+would touch 23 notebooks, require regenerating all ~100 files anyway, and trade one
+breakage mode (config drift) for another (layer renames). Pinning states plainly what
+the checkpoints are.
+
+The maintenance model that follows: **retrain the checkpoints and move the pin
+together, as one periodic job** — every year or two, when the course is rebuilt. Never
+move one without the other. When you do bump it, update in the same commit:
+
+- `requirements.txt` (the pin)
+- `index.ipynb` — the "A note on the Keras version" cell before Day 3, and the version
+  the Setup cell tells students to expect
+- the release artifacts fetched by `download_data.py`, which is how students get the
+  checkpoints (none are committed — `git ls-files` shows zero `.keras`)
+
+Students are told about the pin rather than having it hidden in a requirements file:
+`index.ipynb` explains it before the first Keras session.
 
 ## Notebook house style (match it exactly)
 
@@ -233,12 +263,14 @@ git show dl2026-plan:DL2026_GPU_HANDOFF.md   # the brief for the GPU-bound noteb
 Read that plan before restructuring a session notebook. It records, among other things,
 which notebooks cannot run top to bottom *by design* (`sessions/jax.ipynb` has a
 deliberate error demonstrating `static_argnames`), why the checkpoints require
-`keras>=3.15`, and what was tried and rejected.
+`keras>=3.15` (since tightened to an exact pin, above), and what was tried and rejected.
 
 Remaining known work is tracked as issues rather than in a plan file:
 
-- [DataSciPy#6](https://github.com/yoavram/DataSciPy/issues/6) — whole-model `.keras`
-  checkpoints are tied to the Keras version that wrote them; proposes saving weights only.
+- [DataSciPy#6](https://github.com/yoavram/DataSciPy/issues/6) — **closed, decided.**
+  Whole-model `.keras` checkpoints are tied to the Keras version that wrote them. It
+  proposed migrating to weights-only; that was rejected in favour of the exact pin
+  described above. Read it before reopening the question — the exposure is measured there.
 - [nanochat#1](https://github.com/yoavram/nanochat/issues/1) — the one unfinished phase,
   a Keras self-attention exercise on FordA, whose deliverable belongs in that repository.
 
