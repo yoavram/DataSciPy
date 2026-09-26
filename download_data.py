@@ -212,6 +212,22 @@ def _turtles():
               "in this file")
 
 
+# The UCI poker hand dataset (id 158): two plain CSV files, 25,010 + 1,000,000 hands.
+# sessions/imbalanced.ipynb concatenates them and makes its own split, so the names
+# "training" and "testing" are only how UCI ships them.
+POKER_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/poker/"
+POKER_FILES = ("poker-hand-training-true.data", "poker-hand-testing.data")
+
+
+def _poker():
+    for name in POKER_FILES:
+        path = os.path.join(DATA, name)
+        if os.path.exists(path):
+            print(f"    already present: {path}")
+            continue
+        download_file(POKER_URL + name, path)
+
+
 def _penguins():
     path = os.path.join(DATA, "penguins.csv")
     if os.path.exists(path):
@@ -246,6 +262,10 @@ KERAS_ITEMS = {
         "cached arrays, ~188 MB + a 10 min rebuild - sessions/reid.ipynb",
     ),
     "penguins": (_penguins, "data/penguins.csv - sessions/gamma_regression.ipynb"),
+    "poker": (
+        _poker,
+        "UCI poker hands, ~24 MB - sessions/imbalanced.ipynb (Day 2 bonus)",
+    ),
 }
 
 
