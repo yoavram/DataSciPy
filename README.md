@@ -51,7 +51,7 @@ So install it *without* its dependency tree. Open a terminal in VS Code
 (**Terminal -> New Terminal**, with the `.venv` environment active) and run:
 
 ```bash
-python -m pip install --no-deps keras-hub
+python -m pip install --no-deps keras-hub==0.32.0
 ```
 
 Everything it actually needs is already in `requirements.txt`. Skip this if you are not
@@ -76,6 +76,34 @@ doing that session.
 
 - Open `index.ipynb` in VS Code.
 - When VS Code asks for a kernel, choose the `.venv` environment you created.
+
+## Setting up from a terminal (another machine, or without VS Code)
+
+The steps above are the supported route. To build the same environment from a terminal,
+with Python 3.12 and the course folder as the working directory:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
+python -m pip install --no-deps keras-hub==0.32.0   # see "Install KerasHub" above
+export KERAS_BACKEND=jax             # VS Code reads .env; a terminal does not
+python -c "import keras, jax; print(keras.__version__, keras.backend.backend(), jax.default_backend())"
+python download_data.py              # the trained checkpoints; none are committed
+```
+
+`requirements.txt` pins every package it lists to an exact version, but not the packages
+those depend on, so two installs can still differ in those. To reproduce an environment
+exactly, freeze a working one and install from the result on the other machine:
+
+```bash
+python -m pip freeze > requirements.lock     # on the working machine
+python -m pip install -r requirements.lock   # on the other one
+```
+
+On a machine with an NVIDIA GPU, install the CUDA build of JAX
+(`python -m pip install "jax[cuda12]==0.11.1"`, matching your driver) after the step
+that installs `requirements.txt`. The plain `jax` line installs the CPU build.
 
 ## Troubleshooting
 
